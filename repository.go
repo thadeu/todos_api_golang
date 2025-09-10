@@ -122,6 +122,7 @@ func (r *Repository) DeleteUser(id string) error {
 	}
 
 	rowsAffected, _ := result.RowsAffected()
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("user with id %s not found", id)
 	}
