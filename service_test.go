@@ -1,8 +1,8 @@
 package main
 
 import (
-	"organize/factories"
 	"testing"
+	"todoapp/factories"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"

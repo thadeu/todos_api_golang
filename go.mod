@@ -1,8 +1,9 @@
-module organize
+module todoapp
 
 go 1.25.0
 
 require (
+	github.com/Goldziher/fabricator v1.1.1
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-sqlite3 v1.14.32
@@ -10,7 +11,6 @@ require (
 )
 
 require (
-	github.com/Goldziher/fabricator v1.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/go-faker/faker/v4 v4.6.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
