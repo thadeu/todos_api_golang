@@ -1,0 +1,60 @@
+.DS_Store
+db/database.db
+
+tmp/
+
+# Binários
+app/bin/*
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+webrtc-trunk
+bkp
+
+# Arquivos de teste
+*.test
+*.out
+
+# Cobertura de código
+*.cover
+
+# Dependências
+vendor/
+
+# Arquivos de ambiente
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Arquivos temporários
+*.tmp
+*.temp
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Build artifacts
+build/
+dist/
