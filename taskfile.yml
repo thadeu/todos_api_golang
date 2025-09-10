@@ -24,6 +24,7 @@ tasks:
       - go test ./... -json -cover | tparse -all
 
   dev:
+    dotenv: ['.env']
     cmds:
       - air -c .air.toml
 
