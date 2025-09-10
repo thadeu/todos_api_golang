@@ -1,9 +1,9 @@
 package main
 
 import (
+	"organize/factories"
 	"testing"
 
-	"github.com/Goldziher/fabricator"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -33,10 +33,10 @@ func (s *ServiceTestSuite) TestService_GetAllUsers_Empty() {
 func (s *ServiceTestSuite) TestService_GetAllUsers_WithData() {
 	cleanDB(s.T(), s.setup)
 
-	var user1 = fabricator.New[User](User{}).Build()
+	user1 := factories.NewUser[User]()
 	s.setup.Repo.CreateUser(user1)
 
-	var user2 = fabricator.New[User](User{}).Build()
+	user2 := factories.NewUser[User]()
 	s.setup.Repo.CreateUser(user2)
 
 	users, err := s.setup.Service.GetAllUsers()
@@ -48,12 +48,10 @@ func (s *ServiceTestSuite) TestService_GetAllUsers_WithData() {
 func (s *ServiceTestSuite) TestService_CreateUser_Success() {
 	cleanDB(s.T(), s.setup)
 
-	user, _ := s.setup.Repo.CreateUser(fabricator.New[User](User{}).Build(
-		map[string]any{
-			"Name":  "Test User",
-			"Email": "test@example.com",
-		},
-	))
+	user, _ := s.setup.Repo.CreateUser(factories.NewUser[User](map[string]any{
+		"Name":  "Test User",
+		"Email": "test@example.com",
+	}))
 
 	assert.NotEmpty(s.T(), user.ID)
 	assert.NotEmpty(s.T(), user.UUID)
@@ -64,16 +62,14 @@ func (s *ServiceTestSuite) TestService_CreateUser_Success() {
 func (s *ServiceTestSuite) TestService_DeleteByUUID_Success() {
 	cleanDB(s.T(), s.setup)
 
-	user, _ := s.setup.Repo.CreateUser(fabricator.New[User](User{}).Build(
-		map[string]any{
-			"Name":  "Test User",
-			"Email": "test@example.com",
-		},
-	))
+	user, _ := s.setup.Repo.CreateUser(factories.NewUser[User](map[string]any{
+		"Name":  "Test User 2",
+		"Email": "test@example.com",
+	}))
 
 	assert.NotEmpty(s.T(), user.ID)
 	assert.NotEmpty(s.T(), user.UUID)
-	assert.Equal(s.T(), "Test User", user.Name)
+	assert.Equal(s.T(), "Test User 2", user.Name)
 	assert.Equal(s.T(), "test@example.com", user.Email)
 }
 
