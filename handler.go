@@ -21,7 +21,7 @@ func (u *Handlers) registerUser() {
 }
 
 func (u *Handlers) GetAllUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := u.service.GetAllUsers(r)
+	users, err := u.service.GetAllUsers()
 
 	if err != nil {
 		slog.Error("Error fetching users", "error", err)

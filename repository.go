@@ -47,6 +47,10 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
+func (r *Repository) Save(user User) (User, error) {
+	return r.CreateUser(user)
+}
+
 func (r *Repository) CreateUser(user User) (User, error) {
 	stmt, err := r.db.Prepare("INSERT INTO users (uuid, name, email, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?)")
 
@@ -57,7 +61,8 @@ func (r *Repository) CreateUser(user User) (User, error) {
 	defer stmt.Close()
 
 	uuid := user.UUID.String()
-	_, err = stmt.Exec(uuid, user.Name, user.Email, user.CreatedAt, user.UpdatedAt, user.DeletedAt)
+
+	_, err = stmt.Exec(uuid, user.Name, user.Email, user.CreatedAt, user.UpdatedAt, nil)
 
 	if err != nil {
 		return User{}, err
@@ -175,10 +180,16 @@ func (r *Repository) DeleteByUUID(uuid string) error {
 	defer stmt.Close()
 
 	now := time.Now()
-	_, err = stmt.Exec(now, uuid)
+	result, err := stmt.Exec(now, uuid)
 
 	if err != nil {
 		return err
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user with uuid %s not found", uuid)
 	}
 
 	return nil

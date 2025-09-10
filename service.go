@@ -17,7 +17,7 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) GetAllUsers(r *http.Request) ([]UserResponse, error) {
+func (s *Service) GetAllUsers() ([]UserResponse, error) {
 	rows, err := s.repo.GetAllUsers()
 
 	data := make([]UserResponse, 0)
