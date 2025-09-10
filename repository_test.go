@@ -15,11 +15,11 @@ type RepositoryTestSuite struct {
 	setup *TestSetup
 }
 
-func (s *RepositoryTestSuite) SetupSuite() {
+func (s *RepositoryTestSuite) SetupTest() {
 	s.setup = setupTest(s.T())
 }
 
-func (s *RepositoryTestSuite) TearDownSuite() {
+func (s *RepositoryTestSuite) TearDownTest() {
 	teardownTest(s.T(), s.setup)
 }
 
@@ -28,8 +28,6 @@ func TestRepositoryTestSuite(t *testing.T) {
 }
 
 func (s *RepositoryTestSuite) TestRepository_GetAllUsers_Empty() {
-	cleanDB(s.T(), s.setup)
-
 	users, err := s.setup.Repo.GetAllUsers()
 
 	assert.NoError(s.T(), err)
@@ -37,8 +35,6 @@ func (s *RepositoryTestSuite) TestRepository_GetAllUsers_Empty() {
 }
 
 func (s *RepositoryTestSuite) TestRepository_GetAllUsers_WithData() {
-	cleanDB(s.T(), s.setup)
-
 	s.setup.Repo.CreateUser(factories.NewUser[User]())
 	s.setup.Repo.CreateUser(factories.NewUser[User]())
 
@@ -49,8 +45,6 @@ func (s *RepositoryTestSuite) TestRepository_GetAllUsers_WithData() {
 }
 
 func (s *RepositoryTestSuite) TestRepository_CreateUser_Success() {
-	cleanDB(s.T(), s.setup)
-
 	user, err := s.setup.Repo.CreateUser(User{
 		UUID:  uuid.New(),
 		Name:  "Test User",
@@ -65,8 +59,6 @@ func (s *RepositoryTestSuite) TestRepository_CreateUser_Success() {
 }
 
 func (s *RepositoryTestSuite) TestRepository_DeleteUser_Success() {
-	cleanDB(s.T(), s.setup)
-
 	user, _ := s.setup.Repo.CreateUser(factories.NewUser[User]())
 
 	err := s.setup.Repo.DeleteUser(strconv.Itoa(user.ID))
@@ -79,8 +71,6 @@ func (s *RepositoryTestSuite) TestRepository_DeleteUser_Success() {
 }
 
 func (s *RepositoryTestSuite) TestRepository_DeleteByUUID_Success() {
-	cleanDB(s.T(), s.setup)
-
 	user, _ := s.setup.Repo.CreateUser(factories.NewUser[User]())
 
 	err := s.setup.Repo.DeleteByUUID(user.UUID.String())

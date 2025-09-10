@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 )
 
 type Handlers struct {
@@ -41,6 +42,8 @@ func (u *Handlers) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 func (u *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Creating new user", "method", r.Method, "path", r.URL.Path)
 
+	startTime := time.Now()
+
 	user, err := u.service.CreateUser(r)
 
 	if err != nil {
@@ -65,6 +68,9 @@ func (u *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 
 	json.NewEncoder(w).Encode(response)
+
+	endTime := time.Now()
+	slog.Info("User created", "time", endTime.Sub(startTime))
 
 }
 

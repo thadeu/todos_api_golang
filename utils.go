@@ -24,13 +24,11 @@ func initDB() *sql.DB {
 		log.Fatal(err)
 	}
 
-	// Run migrations
 	runMigrations(db)
 
 	return db
 }
 
-// runMigrations executes database migrations
 func runMigrations(db *sql.DB) {
 	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
 	if err != nil {
@@ -49,25 +47,4 @@ func runMigrations(db *sql.DB) {
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		log.Fatal("Failed to run migrations:", err)
 	}
-}
-
-// initTestDB creates an in-memory SQLite database for testing
-func initTestDB() *sql.DB {
-	db, err := sql.Open("sqlite3", ":memory:")
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Enable foreign keys
-	_, err = db.Exec("PRAGMA foreign_keys = ON")
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Run migrations for test database
-	runMigrations(db)
-
-	return db
 }

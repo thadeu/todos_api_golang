@@ -13,17 +13,15 @@ type ServiceTestSuite struct {
 	setup *TestSetup
 }
 
-func (s *ServiceTestSuite) SetupSuite() {
+func (s *ServiceTestSuite) SetupTest() {
 	s.setup = setupTest(s.T())
 }
 
-func (s *ServiceTestSuite) TearDownSuite() {
+func (s *ServiceTestSuite) TearDownTest() {
 	teardownTest(s.T(), s.setup)
 }
 
 func (s *ServiceTestSuite) TestService_GetAllUsers_Empty() {
-	cleanDB(s.T(), s.setup)
-
 	users, err := s.setup.Service.GetAllUsers()
 
 	assert.NoError(s.T(), err)
@@ -31,8 +29,6 @@ func (s *ServiceTestSuite) TestService_GetAllUsers_Empty() {
 }
 
 func (s *ServiceTestSuite) TestService_GetAllUsers_WithData() {
-	cleanDB(s.T(), s.setup)
-
 	user1 := factories.NewUser[User]()
 	s.setup.Repo.CreateUser(user1)
 
@@ -46,8 +42,6 @@ func (s *ServiceTestSuite) TestService_GetAllUsers_WithData() {
 }
 
 func (s *ServiceTestSuite) TestService_CreateUser_Success() {
-	cleanDB(s.T(), s.setup)
-
 	user, _ := s.setup.Repo.CreateUser(factories.NewUser[User](map[string]any{
 		"Name":  "Test User",
 		"Email": "test@example.com",
@@ -60,8 +54,6 @@ func (s *ServiceTestSuite) TestService_CreateUser_Success() {
 }
 
 func (s *ServiceTestSuite) TestService_DeleteByUUID_Success() {
-	cleanDB(s.T(), s.setup)
-
 	user, _ := s.setup.Repo.CreateUser(factories.NewUser[User](map[string]any{
 		"Name":  "Test User 2",
 		"Email": "test@example.com",
@@ -74,8 +66,6 @@ func (s *ServiceTestSuite) TestService_DeleteByUUID_Success() {
 }
 
 func (s *ServiceTestSuite) TestService_DeleteByUUID_NotFound() {
-	cleanDB(s.T(), s.setup)
-
 	err := s.setup.Repo.DeleteByUUID("non-existent-uuid")
 	assert.Error(s.T(), err)
 }

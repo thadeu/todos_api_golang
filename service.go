@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -97,6 +98,10 @@ func (s *Service) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) DeleteByUUID(r *http.Request) (map[string]any, error) {
 	id := r.PathValue("uuid")
+
+	if id == "" {
+		return nil, fmt.Errorf("ID is required")
+	}
 
 	_, err := s.repo.GetUserByUUID(id)
 

@@ -8,3 +8,6 @@ test-watch:
 
 test-cover:
 	gocover || bin/gocover
+
+dev:
+	air -c .air.toml
