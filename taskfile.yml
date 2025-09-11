@@ -1,23 +1,23 @@
-# https://taskfile.dev/
+version: '3' # https://taskfile.dev/
 
-version: '3'
+dotenv: ['.env']
 
 tasks:
   default:
     deps: [test]
-    cmds:
-      - task: dev
+    # cmds:
+    #   - task: dev
 
   test:
     aliases: [t]
     cmds:
-      - gotest || bin/gotest
+      - bin/gotest --format-hide-empty-pkg
   
   test-watch:
     aliases: [tw]
     cmds:
       - task: test
-      - gotest --watch --format testdox
+      - gotest --watch --format testdox --format-hide-empty-pkg
 
   cover:
     cmds:
@@ -26,8 +26,32 @@ tasks:
   dev:
     dotenv: ['.env']
     cmds:
-      - air -c .air.toml
+      - air -c .air.api.toml
 
-  build:
+  build-all:
     cmds:
-      - go build -ldflags='-s -w' -o ./tmp/main .
+      - go build -o ./tmp/api ./cmd/api
+
+  # Example to run generate a new migration
+  # task g:migration -- create_todos_table
+  g:migration:
+    dir: db
+    silent: true
+    cmds:
+      - migrate create -ext sql -dir migrations -seq {{.CLI_ARGS}}
+  
+  # task migrate:up
+  migrate:up:
+    dir: db
+    silent: true
+    cmds:
+      - echo "Running migrations up..."
+      - migrate -database $DATABASE_URL -path migrations up
+
+  # task migrate:up
+  migrate:down:
+    dir: db
+    silent: true
+    cmds:
+      - echo "Running migrations down..."
+      - migrate -database $DATABASE_URL -path migrations down

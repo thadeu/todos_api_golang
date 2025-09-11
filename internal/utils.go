@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"database/sql"
@@ -11,7 +11,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func initDB() *sql.DB {
+func InitDB() *sql.DB {
 	dbPath := os.Getenv("DATABASE_PATH")
 
 	if dbPath == "" {
@@ -24,19 +24,26 @@ func initDB() *sql.DB {
 		log.Fatal(err)
 	}
 
-	runMigrations(db)
+	migrationsPath := os.Getenv("MIGRATIONS_PATH")
+
+	if migrationsPath == "" {
+		migrationsPath = "db/migrations"
+	}
+
+	RunMigrations(db, migrationsPath)
 
 	return db
 }
 
-func runMigrations(db *sql.DB) {
+func RunMigrations(db *sql.DB, migrationsPath string) {
 	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
+
 	if err != nil {
 		log.Fatal("Failed to create migration driver:", err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://db/migrations",
+		"file://"+migrationsPath,
 		"sqlite3",
 		driver,
 	)
@@ -47,4 +54,14 @@ func runMigrations(db *sql.DB) {
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		log.Fatal("Failed to run migrations:", err)
 	}
+}
+
+func GetServerPort() string {
+	port := os.Getenv("PORT")
+
+	if port == "" {
+		port = "8080"
+	}
+
+	return port
 }

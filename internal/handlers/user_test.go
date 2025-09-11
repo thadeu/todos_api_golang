@@ -1,4 +1,4 @@
-package main
+package handlers_test
 
 import (
 	"encoding/json"
@@ -8,39 +8,47 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"todoapp/factories"
+	"todoapp/internal/factories"
+
+	. "todoapp/internal/handlers"
+	. "todoapp/internal/models"
+	. "todoapp/internal/repositories"
+	. "todoapp/internal/services"
+	. "todoapp/internal/test"
 
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/suite"
 )
 
-type HandlerSuite struct {
+type UserHandlerSuite struct {
 	suite.Suite
-	setup *TestSetup
+	setup *TestSetup[UserRepository]
 }
 
-var globalHandler *Handlers
+var globalHandler *UserHandler
 
-func (s *HandlerSuite) SetupSuite() {
-	globalHandler = &Handlers{}
-	globalHandler.registerUser()
+func (s *UserHandlerSuite) SetupSuite() {
+	globalHandler = &UserHandler{}
+	globalHandler.Register()
 }
 
-func (s *HandlerSuite) SetupTest() {
-	s.setup = setupTest(s.T())
-	globalHandler.service = s.setup.Service
+func (s *UserHandlerSuite) SetupTest() {
+	db := InitTestDB()
+	repo := NewUserRepository(db)
+	s.setup = SetupTest(s.T(), repo)
+	globalHandler.Service = NewUserService(s.setup.Repo)
 }
 
-func (s *HandlerSuite) TearDownTest() {
-	teardownTest(s.T(), s.setup)
+func (s *UserHandlerSuite) TearDownTest() {
+	TeardownTest(s.T(), s.setup)
 }
 
 func TestHandlerSuite(t *testing.T) {
 	RegisterTestingT(t)
-	suite.Run(t, new(HandlerSuite))
+	suite.Run(t, new(UserHandlerSuite))
 }
 
-func (s *HandlerSuite) TestGetAllUsersWithData() {
+func (s *UserHandlerSuite) TestGetAllUsersWithData() {
 	s.setup.Repo.CreateUser(factories.NewUser[User](map[string]any{
 		"Name": "User1",
 	}))
@@ -65,7 +73,7 @@ func (s *HandlerSuite) TestGetAllUsersWithData() {
 	Expect(first.Name).To(Equal("User1"))
 }
 
-func (s *HandlerSuite) TestCreateUser() {
+func (s *UserHandlerSuite) TestCreateUser() {
 	reqBody := strings.NewReader(`{"name": "User2", "email": "user2@example.com"}`)
 
 	req, _ := http.NewRequest("POST", "/users", reqBody)
@@ -86,7 +94,7 @@ func (s *HandlerSuite) TestCreateUser() {
 	Expect(data.UUID).To(Not(BeEmpty()))
 }
 
-func (s *HandlerSuite) TestDeleteByUUIDWhenIdExists() {
+func (s *UserHandlerSuite) TestDeleteByUUIDWhenIdExists() {
 	user, _ := s.setup.Repo.CreateUser(factories.NewUser[User](map[string]any{
 		"Name": "User",
 	}))

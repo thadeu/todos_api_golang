@@ -1,40 +1,46 @@
-package main
+package repositories_test
 
 import (
 	"strconv"
 	"testing"
-	"todoapp/factories"
+	"todoapp/internal/factories"
+
+	. "todoapp/internal/models"
+	. "todoapp/internal/repositories"
+	. "todoapp/internal/test"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
-type RepositoryTestSuite struct {
+type UserRepositoryTestSuite struct {
 	suite.Suite
-	setup *TestSetup
+	setup *TestSetup[UserRepository]
 }
 
-func (s *RepositoryTestSuite) SetupTest() {
-	s.setup = setupTest(s.T())
+func (s *UserRepositoryTestSuite) SetupTest() {
+	db := InitTestDB()
+	repo := NewUserRepository(db)
+	s.setup = SetupTest(s.T(), repo)
 }
 
-func (s *RepositoryTestSuite) TearDownTest() {
-	teardownTest(s.T(), s.setup)
+func (s *UserRepositoryTestSuite) TearDownTest() {
+	TeardownTest(s.T(), s.setup)
 }
 
-func TestRepositoryTestSuite(t *testing.T) {
-	suite.Run(t, new(RepositoryTestSuite))
+func TestUserRepositoryTestSuite(t *testing.T) {
+	suite.Run(t, new(UserRepositoryTestSuite))
 }
 
-func (s *RepositoryTestSuite) TestRepository_GetAllUsers_Empty() {
+func (s *UserRepositoryTestSuite) TestRepository_GetAllUsers_Empty() {
 	users, err := s.setup.Repo.GetAllUsers()
 
 	assert.NoError(s.T(), err)
 	assert.Empty(s.T(), users)
 }
 
-func (s *RepositoryTestSuite) TestRepository_GetAllUsers_WithData() {
+func (s *UserRepositoryTestSuite) TestRepository_GetAllUsers_WithData() {
 	s.setup.Repo.CreateUser(factories.NewUser[User]())
 	s.setup.Repo.CreateUser(factories.NewUser[User]())
 
@@ -44,7 +50,7 @@ func (s *RepositoryTestSuite) TestRepository_GetAllUsers_WithData() {
 	assert.Len(s.T(), users, 2)
 }
 
-func (s *RepositoryTestSuite) TestRepository_CreateUser_Success() {
+func (s *UserRepositoryTestSuite) TestRepository_CreateUser_Success() {
 	user, err := s.setup.Repo.CreateUser(User{
 		UUID:  uuid.New(),
 		Name:  "Test User",
@@ -58,7 +64,7 @@ func (s *RepositoryTestSuite) TestRepository_CreateUser_Success() {
 	assert.Equal(s.T(), "test@example.com", user.Email)
 }
 
-func (s *RepositoryTestSuite) TestRepository_DeleteUser_Success() {
+func (s *UserRepositoryTestSuite) TestRepository_DeleteUser_Success() {
 	user, _ := s.setup.Repo.CreateUser(factories.NewUser[User]())
 
 	err := s.setup.Repo.DeleteUser(strconv.Itoa(user.ID))
@@ -70,7 +76,7 @@ func (s *RepositoryTestSuite) TestRepository_DeleteUser_Success() {
 	assert.Error(s.T(), err)
 }
 
-func (s *RepositoryTestSuite) TestRepository_DeleteByUUID_Success() {
+func (s *UserRepositoryTestSuite) TestRepository_DeleteByUUID_Success() {
 	user, _ := s.setup.Repo.CreateUser(factories.NewUser[User]())
 
 	err := s.setup.Repo.DeleteByUUID(user.UUID.String())

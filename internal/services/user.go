@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"encoding/json"
@@ -7,28 +7,31 @@ import (
 	"net/http"
 	"time"
 
+	m "todoapp/internal/models"
+	ru "todoapp/internal/repositories"
+
 	"github.com/google/uuid"
 )
 
-type Service struct {
-	repo *Repository
+type UserService struct {
+	repo *ru.UserRepository
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewUserService(repo *ru.UserRepository) *UserService {
+	return &UserService{repo: repo}
 }
 
-func (s *Service) GetAllUsers() ([]UserResponse, error) {
+func (s *UserService) GetAllUsers() ([]ru.UserResponse, error) {
 	rows, err := s.repo.GetAllUsers()
 
-	data := make([]UserResponse, 0)
+	data := make([]ru.UserResponse, 0)
 
 	if err != nil {
 		return data, err
 	}
 
 	for _, user := range rows {
-		item := UserResponse{
+		item := ru.UserResponse{
 			UUID:      user.UUID.String(),
 			Name:      user.Name,
 			Email:     user.Email,
@@ -43,18 +46,18 @@ func (s *Service) GetAllUsers() ([]UserResponse, error) {
 	return data, nil
 }
 
-func (s *Service) CreateUser(r *http.Request) (User, error) {
-	var params UserRequest
+func (s *UserService) CreateUser(r *http.Request) (m.User, error) {
+	var params ru.UserRequest
 
 	err := json.NewDecoder(r.Body).Decode(&params)
 
 	if err != nil {
-		return User{}, err
+		return m.User{}, err
 	}
 
 	now := time.Now()
 
-	newUser := User{
+	newUser := m.User{
 		UUID:      uuid.New(),
 		Name:      params.Name,
 		Email:     params.Email,
@@ -66,13 +69,13 @@ func (s *Service) CreateUser(r *http.Request) (User, error) {
 	user, err := s.repo.CreateUser(newUser)
 
 	if err != nil {
-		return User{}, err
+		return m.User{}, err
 	}
 
 	return user, nil
 }
 
-func (s *Service) DeleteUser(w http.ResponseWriter, r *http.Request) {
+func (s *UserService) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	err := s.repo.DeleteUser(id)
@@ -96,7 +99,7 @@ func (s *Service) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Service) DeleteByUUID(r *http.Request) (map[string]any, error) {
+func (s *UserService) DeleteByUUID(r *http.Request) (map[string]any, error) {
 	id := r.PathValue("uuid")
 
 	if id == "" {

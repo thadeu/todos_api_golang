@@ -1,20 +1,20 @@
-package main
+package test
 
 import (
 	"database/sql"
 	"log"
-	"log/slog"
 	"strings"
 	"testing"
+
+	internal "todoapp/internal"
 )
 
-type TestSetup struct {
-	DB      *sql.DB
-	Repo    *Repository
-	Service *Service
+type TestSetup[T any] struct {
+	DB   *sql.DB
+	Repo *T
 }
 
-func initTestDB() *sql.DB {
+func InitTestDB() *sql.DB {
 	db, err := sql.Open("sqlite3", ":memory:")
 
 	if err != nil {
@@ -29,31 +29,28 @@ func initTestDB() *sql.DB {
 	}
 
 	// Run migrations for test database
-	runMigrations(db)
+	internal.RunMigrations(db, "../../db/migrations")
 
 	return db
 }
 
-func setupTest(t *testing.T) *TestSetup {
-	db := initTestDB()
-	repo := NewRepository(db)
-	service := NewService(repo)
+func SetupTest[T any](t *testing.T, repo *T) *TestSetup[T] {
+	db := InitTestDB()
 
-	return &TestSetup{
-		DB:      db,
-		Repo:    repo,
-		Service: service,
+	return &TestSetup[T]{
+		DB:   db,
+		Repo: repo,
 	}
 }
 
-func teardownTest(t *testing.T, setup *TestSetup) {
+func TeardownTest[T any](t *testing.T, setup *TestSetup[T]) {
 	if setup.DB != nil {
-		cleanDB(t, setup)
+		CleanDB[T](t, setup)
 		setup.DB.Close()
 	}
 }
 
-func cleanDB(t *testing.T, setup *TestSetup) {
+func CleanDB[T any](t *testing.T, setup *TestSetup[T]) {
 	rows, err := setup.DB.Query("SELECT name FROM sqlite_master WHERE type = 'table' and name not in ('sqlite_sequence', 'schema_migrations')")
 	if err != nil {
 		t.Fatalf("Failed to query tables: %v", err)
@@ -68,7 +65,7 @@ func cleanDB(t *testing.T, setup *TestSetup) {
 		}
 		table = strings.TrimSpace(table)
 
-		slog.Info("Cleaning table", "table", table)
+		// slog.Info("Cleaning table", "table", table)
 
 		var count int
 		err = setup.DB.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table).Scan(&count)
@@ -77,7 +74,7 @@ func cleanDB(t *testing.T, setup *TestSetup) {
 		}
 
 		if count == 0 {
-			slog.Info("Table does not exist, skipping", "table", table)
+			// slog.Info("Table does not exist, skipping", "table", table)
 			continue
 		}
 
