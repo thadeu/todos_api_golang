@@ -17,8 +17,8 @@ type AuthService struct {
 }
 
 type AuthRequest struct {
-	Email    string `json:"email,omitempty"`
-	Password string `json:"password,omitempty"`
+	Email    string `json:"email,omitempty" validate:"required,email,max=255"`
+	Password string `json:"password,omitempty" validate:"required,min=6,max=100"`
 }
 
 func NewAuthService(repo *ru.UserRepository) *AuthService {

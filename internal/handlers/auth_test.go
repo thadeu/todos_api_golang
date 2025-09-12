@@ -13,6 +13,7 @@ import (
 	. "todoapp/internal/handlers"
 	. "todoapp/internal/repositories"
 	. "todoapp/internal/services"
+	. "todoapp/internal/shared"
 	. "todoapp/internal/test"
 
 	"github.com/gin-gonic/gin"
@@ -58,26 +59,39 @@ func TestAuthHandlerSuite(t *testing.T) {
 	suite.Run(t, new(AuthHandlerSuite))
 }
 
-type BodyResponse struct {
-	Message string `json:"message"`
-}
-
 func (a *AuthHandlerSuite) TestSignUpUserSuccess() {
 	reqBody := strings.NewReader(`{"email": "eu@test.com", "password": "12345678"}`)
 	req, _ := http.NewRequest("POST", "/signup", reqBody)
 
 	rr := httptest.NewRecorder()
 
-	// http.DefaultServeMux.ServeHTTP(rr, req)
 	a.Router.ServeHTTP(rr, req)
 
-	Expect(rr.Code).To(Equal(http.StatusOK))
+	Expect(rr.Code).To(Equal(http.StatusCreated))
 
 	body, _ := io.ReadAll(rr.Body)
-	data := BodyResponse{}
+	data := gin.H{}
 	json.Unmarshal(body, &data)
 
-	expectedMessage := fmt.Sprintf("User %s was created successfully", "eu@test.com")
+	expectedMessage := fmt.Sprintf("Usuário %s foi criado com sucesso", "eu@test.com")
 
-	Expect(data.Message).To(Equal(expectedMessage))
+	Expect(data["message"]).To(Equal(expectedMessage))
+}
+
+func (a *AuthHandlerSuite) TestSignUpUserValidationError() {
+	reqBody := strings.NewReader(`{"email": "invalid-email", "password": "123"}`)
+	req, _ := http.NewRequest("POST", "/signup", reqBody)
+
+	rr := httptest.NewRecorder()
+
+	a.Router.ServeHTTP(rr, req)
+
+	Expect(rr.Code).To(Equal(http.StatusBadRequest))
+
+	body, _ := io.ReadAll(rr.Body)
+	data := ErrorResponse{}
+	json.Unmarshal(body, &data)
+
+	Expect(data.Error.Code).To(Equal("VALIDATION_ERROR"))
+	Expect(len(data.Error.Errors)).To(BeNumerically(">", 0))
 }

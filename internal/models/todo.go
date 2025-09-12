@@ -9,7 +9,7 @@ import (
 type Todo struct {
 	ID          int
 	UUID        uuid.UUID
-	Title       string `validate:"required,min=4,max=255"`
+	Title       string `validate:"required,min=2,max=255"`
 	Description string `validate:"max=255"`
 	Status      int
 	Completed   bool `validate:"boolean"`

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	. "todoapp/internal/services"
+	"todoapp/internal/shared"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,36 +22,39 @@ func (t *AuthHandler) RegisterByEmailAndPassword(c *gin.Context) {
 	var params AuthRequest
 
 	if err := c.ShouldBindJSON(&params); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"errors": []string{"Invalid params", err.Error()},
-		})
+		shared.SendBadRequestError(c, "request", "Parâmetros inválidos na requisição")
+		return
+	}
 
+	// Validar os parâmetros usando o validator
+	if err := shared.Validator.Struct(params); err != nil {
+		shared.SendValidationError(c, err)
 		return
 	}
 
 	user, err := t.Service.Registration(params.Email, params.Password)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"errors": []string{"Invalid params", err.Error()},
-		})
-
+		shared.SendBadRequestError(c, "registration", err.Error())
 		return
 	}
 
-	message := fmt.Sprintf("User %s was created successfully", user.Email)
-
-	c.JSON(http.StatusOK, gin.H{"message": message})
+	c.JSON(http.StatusCreated, gin.H{
+		"message": fmt.Sprintf("Usuário %s foi criado com sucesso", user.Email),
+	})
 }
 
 func (t *AuthHandler) AuthByEmailAndPassword(c *gin.Context) {
 	var params AuthRequest
 
 	if err := c.ShouldBindJSON(&params); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"errors": []string{"Invalid params", err.Error()},
-		})
+		shared.SendBadRequestError(c, "request", "Parâmetros inválidos na requisição")
+		return
+	}
 
+	// Validar os parâmetros usando o validator
+	if err := shared.Validator.Struct(params); err != nil {
+		shared.SendValidationError(c, err)
 		return
 	}
 
@@ -58,22 +62,18 @@ func (t *AuthHandler) AuthByEmailAndPassword(c *gin.Context) {
 
 	// Paranoid response
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"errors": []string{"Email or password invalid", err.Error()},
-		})
-
+		shared.SendUnauthorizedError(c, "Email ou senha inválidos")
 		return
 	}
 
 	refreshToken, err := t.Service.GenerateRefreshToken(&user)
 
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"errors": []string{"Generate refresh token failed", err.Error()},
-		})
-
+		shared.SendUnauthorizedError(c, "Falha ao gerar token de acesso")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"refresh_token": refreshToken})
+	c.JSON(http.StatusOK, gin.H{
+		"refresh_token": refreshToken,
+	})
 }

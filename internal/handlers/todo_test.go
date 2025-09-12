@@ -129,16 +129,50 @@ func (s *TodoHandlerSuite) TestCreateTodo() {
 	// http.DefaultServeMux.ServeHTTP(rr, req)
 	s.Router.ServeHTTP(rr, req)
 
-	Expect(rr.Code).To(Equal(http.StatusAccepted))
+	Expect(rr.Code).To(Equal(http.StatusCreated))
 	Expect(rr.Header().Get("Content-Type")).To(ContainSubstring("application/json"))
 
 	body, _ := io.ReadAll(rr.Body)
 
-	data := TodoResponse{}
-	json.Unmarshal(body, &data)
+	response := struct {
+		Data TodoResponse `json:"data"`
+	}{}
+	json.Unmarshal(body, &response)
 
-	Expect(data.Title).To(Equal("User2"))
-	Expect(data.UUID).To(Not(BeEmpty()))
+	Expect(response.Data.Title).To(Equal("User2"))
+	Expect(response.Data.UUID).To(Not(BeEmpty()))
+}
+
+func (s *TodoHandlerSuite) TestCreateTodoValidationError() {
+	user := CreateUser(s)
+
+	reqBody := strings.NewReader(`{"title": "ab", "description": "test description"}`)
+
+	req, _ := http.NewRequest("POST", "/todos", reqBody)
+	rr := httptest.NewRecorder()
+
+	jwtToken, _ := CreateJwtTokenForUser(user.ID)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+
+	s.Router.ServeHTTP(rr, req)
+
+	Expect(rr.Code).To(Equal(http.StatusBadRequest))
+
+	body, _ := io.ReadAll(rr.Body)
+
+	errorResponse := struct {
+		Error struct {
+			Code   string `json:"code"`
+			Errors []struct {
+				Field   string `json:"field"`
+				Message string `json:"message"`
+			} `json:"errors"`
+		} `json:"error"`
+	}{}
+	json.Unmarshal(body, &errorResponse)
+
+	Expect(errorResponse.Error.Code).To(Equal("VALIDATION_ERROR"))
+	Expect(len(errorResponse.Error.Errors)).To(BeNumerically(">", 0))
 }
 
 func (s *TodoHandlerSuite) TestUpdateTodoToCompleted() {
@@ -165,13 +199,15 @@ func (s *TodoHandlerSuite) TestUpdateTodoToCompleted() {
 
 	body, _ := io.ReadAll(rr.Body)
 
-	data := TodoResponse{}
-	json.Unmarshal(body, &data)
+	response := struct {
+		Data TodoResponse `json:"data"`
+	}{}
+	json.Unmarshal(body, &response)
 
-	Expect(data.UUID).To(Not(BeEmpty()))
-	Expect(data.Title).To(Equal("Task Updated"))
-	Expect(data.Completed).To(BeTrue())
-	Expect(data.Status).To(Equal("completed"))
+	Expect(response.Data.UUID).To(Not(BeEmpty()))
+	Expect(response.Data.Title).To(Equal("Task Updated"))
+	Expect(response.Data.Completed).To(BeTrue())
+	Expect(response.Data.Status).To(Equal("completed"))
 }
 
 func (s *TodoHandlerSuite) TestDeleteByUUIDWhenIdExists() {
@@ -196,10 +232,10 @@ func (s *TodoHandlerSuite) TestDeleteByUUIDWhenIdExists() {
 
 	body, _ := io.ReadAll(rr.Body)
 
-	data := map[string]any{}
+	data := gin.H{}
 	json.Unmarshal(body, &data)
 
-	Expect(data["message"]).To(Equal("Todo deleted successfully"))
+	Expect(data["message"]).To(Equal("Todo deletado com sucesso"))
 }
 
 func (s *TodoHandlerSuite) TestCreateTodoWithDifferentStatuses() {
@@ -217,17 +253,19 @@ func (s *TodoHandlerSuite) TestCreateTodoWithDifferentStatuses() {
 	// http.DefaultServeMux.ServeHTTP(rr, req)
 	s.Router.ServeHTTP(rr, req)
 
-	Expect(rr.Code).To(Equal(http.StatusAccepted))
+	Expect(rr.Code).To(Equal(http.StatusCreated))
 	Expect(rr.Header().Get("Content-Type")).To(ContainSubstring("application/json"))
 
 	body, _ := io.ReadAll(rr.Body)
 
-	data := TodoResponse{}
-	json.Unmarshal(body, &data)
+	response := struct {
+		Data TodoResponse `json:"data"`
+	}{}
+	json.Unmarshal(body, &response)
 
-	Expect(data.Title).To(Equal("Review Task"))
-	Expect(data.Status).To(Equal("in_review"))
-	Expect(data.UUID).To(Not(BeEmpty()))
+	Expect(response.Data.Title).To(Equal("Review Task"))
+	Expect(response.Data.Status).To(Equal("in_review"))
+	Expect(response.Data.UUID).To(Not(BeEmpty()))
 }
 
 func (s *TodoHandlerSuite) TestCreateTodoWithInvalidStatus() {
@@ -245,7 +283,7 @@ func (s *TodoHandlerSuite) TestCreateTodoWithInvalidStatus() {
 	// http.DefaultServeMux.ServeHTTP(rr, req)
 	s.Router.ServeHTTP(rr, req)
 
-	Expect(rr.Code).To(Equal(http.StatusInternalServerError))
+	Expect(rr.Code).To(Equal(http.StatusBadRequest))
 }
 
 func (s *TodoHandlerSuite) TestDeleteTodoWithSuccess() {
@@ -292,6 +330,8 @@ func (s *TodoHandlerSuite) TestPaginationWithCursor() {
 	Expect(rr.Code).To(Equal(http.StatusOK))
 
 	body, _ := io.ReadAll(rr.Body)
+
+	// Dados retornados diretamente
 	data := c.CursorResponse{}
 	json.Unmarshal(body, &data)
 

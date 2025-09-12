@@ -70,6 +70,7 @@ func getFieldName(field string) string {
 		"Description": "Descrição",
 		"Name":        "Nome",
 		"Email":       "Email",
+		"Password":    "Senha",
 		"Status":      "Status",
 		"Completed":   "Completado",
 	}

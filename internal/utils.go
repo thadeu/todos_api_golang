@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"os"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
@@ -23,6 +24,10 @@ func InitDB() *sql.DB {
 	}
 
 	db, err := sql.Open("sqlite3", dbPath)
+
+	db.SetMaxOpenConns(100)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	logger := zerolog.New(os.Stdout)

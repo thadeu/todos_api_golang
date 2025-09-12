@@ -141,6 +141,11 @@ func (s *TodoService) CreateTodo(c *gin.Context, userId int) (m.Todo, error) {
 		return m.Todo{}, err
 	}
 
+	if err := shared.Validator.Struct(params); err != nil {
+		slog.Error("Falha na validação dos parâmetros do Todo", "error", err)
+		return m.Todo{}, err
+	}
+
 	statusInt := 0
 
 	if params.Status != "" {
@@ -191,10 +196,8 @@ func (s *TodoService) UpdateTodoByUUID(c *gin.Context, userId int) (m.Todo, erro
 	}
 
 	if err := shared.Validator.Struct(params); err != nil {
-		validationErrors := shared.FormatValidationErrors(err)
-		slog.Error("Falha na validação do Todo", "errors", validationErrors)
-
-		return m.Todo{}, fmt.Errorf("%v", validationErrors[len(validationErrors)-1].Message)
+		slog.Error("Falha na validação do Todo", "error", err)
+		return m.Todo{}, err
 	}
 
 	todo, err := s.repo.UpdateByUUID(id, userId, params)

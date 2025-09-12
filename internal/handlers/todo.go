@@ -8,6 +8,7 @@ import (
 
 	. "todoapp/internal/repositories"
 	. "todoapp/internal/services"
+	"todoapp/internal/shared"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,7 +22,6 @@ func NewTodoHandler(service *TodoService) *TodoHandler {
 }
 
 func (t *TodoHandler) GetAllTodos(c *gin.Context) {
-
 	userId := c.GetInt("x-user-id")
 	cursor := c.Query("cursor")
 	limit, _ := strconv.Atoi(c.Query("limit"))
@@ -33,12 +33,8 @@ func (t *TodoHandler) GetAllTodos(c *gin.Context) {
 	data, err := t.Service.GetTodosWithPagination(userId, limit, cursor)
 
 	if err != nil {
-		slog.Error("Error fetching todos", "error", err)
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error fetching todos",
-		})
-
+		slog.Error("Erro ao buscar todos", "error", err)
+		shared.SendInternalError(c, "Erro ao buscar todos")
 		return
 	}
 
@@ -52,12 +48,14 @@ func (t *TodoHandler) CreateTodo(c *gin.Context) {
 	todo, err := t.Service.CreateTodo(c, userId)
 
 	if err != nil {
-		slog.Error("Error creating todo", "error", err)
+		slog.Error("Erro ao criar todo", "error", err)
 
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"messages": []string{err.Error()},
-		})
+		if validationErrors := shared.FormatValidationErrors(err); len(validationErrors) > 0 {
+			shared.SendValidationError(c, err)
+			return
+		}
 
+		shared.SendBadRequestError(c, "creation", err.Error())
 		return
 	}
 
@@ -71,10 +69,10 @@ func (t *TodoHandler) CreateTodo(c *gin.Context) {
 		UpdatedAt:   todo.UpdatedAt,
 	}
 
-	c.JSON(http.StatusAccepted, response)
+	c.JSON(http.StatusCreated, gin.H{"data": response})
 
 	endTime := time.Now()
-	slog.Info("Todo created", "time", endTime.Sub(startTime))
+	slog.Info("Todo criado", "time", endTime.Sub(startTime))
 }
 
 func (t *TodoHandler) UpdateTodo(c *gin.Context) {
@@ -82,10 +80,12 @@ func (t *TodoHandler) UpdateTodo(c *gin.Context) {
 	todo, err := t.Service.UpdateTodoByUUID(c, userId)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"errors": []string{err.Error()},
-		})
+		if validationErrors := shared.FormatValidationErrors(err); len(validationErrors) > 0 {
+			shared.SendValidationError(c, err)
+			return
+		}
 
+		shared.SendBadRequestError(c, "update", err.Error())
 		return
 	}
 
@@ -99,7 +99,7 @@ func (t *TodoHandler) UpdateTodo(c *gin.Context) {
 		UpdatedAt:   todo.UpdatedAt,
 	}
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, gin.H{"data": response})
 }
 
 func (t *TodoHandler) DeleteByUUID(c *gin.Context) {
@@ -107,12 +107,11 @@ func (t *TodoHandler) DeleteByUUID(c *gin.Context) {
 	_, err := t.Service.DeleteByUUID(c, userId)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"messages": []string{err.Error()},
-		})
-
+		shared.SendNotFoundError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Todo deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Todo deletado com sucesso",
+	})
 }

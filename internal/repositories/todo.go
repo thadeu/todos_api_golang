@@ -43,8 +43,8 @@ func StatusToEnum(status string) (int, error) {
 }
 
 type TodoRequest struct {
-	Title       string     `json:"title"`
-	Description string     `json:"description,omitempty"`
+	Title       string     `json:"title" validate:"required,min=3,max=255"`
+	Description string     `json:"description,omitempty" validate:"max=1000"`
 	Status      string     `json:"status,omitempty"`
 	Completed   bool       `json:"completed,omitempty"`
 	CreatedAt   time.Time  `json:"created_at,omitempty"`
