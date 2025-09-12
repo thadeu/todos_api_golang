@@ -7,8 +7,10 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -80,5 +82,44 @@ func JwtAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		context := context.WithValue(r.Context(), "x-user-id", userId)
 
 		next.ServeHTTP(w, r.WithContext(context))
+	}
+}
+
+func GinJwtMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		bearer := c.GetHeader("Authorization")
+
+		if bearer == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"errors": []string{"Unauthorized request"},
+			})
+
+			c.Abort()
+			return
+		}
+
+		if !strings.HasPrefix(bearer, "Bearer ") {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"errors": []string{"Invalid authorization format"},
+			})
+
+			c.Abort()
+			return
+		}
+
+		token, err := VerifyJwtToken(bearer[len("Bearer "):]) // Remove "Bearer "
+
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"errors": []string{"Unauthorized request", err.Error()},
+			})
+			c.Abort()
+			return
+		}
+
+		userId := int(token["user_id"].(float64))
+
+		c.Set("x-user-id", userId)
+		c.Next()
 	}
 }

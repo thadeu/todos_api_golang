@@ -12,6 +12,7 @@ import (
 	"time"
 	"todoapp/internal/factories"
 
+	api "todoapp/internal/api"
 	. "todoapp/internal/handlers"
 	. "todoapp/internal/models"
 	. "todoapp/internal/repositories"
@@ -20,6 +21,7 @@ import (
 	. "todoapp/internal/test"
 	c "todoapp/pkg/cursor"
 
+	"github.com/gin-gonic/gin"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/suite"
 )
@@ -27,6 +29,7 @@ import (
 type TodoHandlerSuite struct {
 	suite.Suite
 	UserRepo *UserRepository
+	Router   *gin.Engine
 	setup    *TestSetup[TodoRepository]
 }
 
@@ -34,7 +37,6 @@ var globalTodoHandler *TodoHandler
 
 func (s *TodoHandlerSuite) SetupSuite() {
 	globalTodoHandler = &TodoHandler{}
-	globalTodoHandler.Register()
 }
 
 func (s *TodoHandlerSuite) SetupTest() {
@@ -43,6 +45,10 @@ func (s *TodoHandlerSuite) SetupTest() {
 	s.setup = SetupTest(s.T(), repo)
 	s.UserRepo = NewUserRepository(db)
 	globalTodoHandler.Service = NewTodoService(s.setup.Repo)
+
+	s.Router = api.SetupRouter(api.HandlersConfig{
+		TodoHandler: globalTodoHandler,
+	})
 }
 
 func (s *TodoHandlerSuite) TearDownTest() {
@@ -88,10 +94,10 @@ func (s *TodoHandlerSuite) TestGetAllTodosWithData() {
 	jwtToken, _ := CreateJwtTokenForUser(user.ID)
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	http.DefaultServeMux.ServeHTTP(rr, req)
+	s.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusOK))
-	Expect(rr.Header().Get("Content-Type")).To(Equal("application/json"))
+	Expect(rr.Header().Get("Content-Type")).To(ContainSubstring("application/json"))
 
 	body, _ := io.ReadAll(rr.Body)
 
@@ -120,10 +126,11 @@ func (s *TodoHandlerSuite) TestCreateTodo() {
 	jwtToken, _ := CreateJwtTokenForUser(user.ID)
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	http.DefaultServeMux.ServeHTTP(rr, req)
+	// http.DefaultServeMux.ServeHTTP(rr, req)
+	s.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusAccepted))
-	Expect(rr.Header().Get("Content-Type")).To(Equal("application/json"))
+	Expect(rr.Header().Get("Content-Type")).To(ContainSubstring("application/json"))
 
 	body, _ := io.ReadAll(rr.Body)
 
@@ -151,10 +158,10 @@ func (s *TodoHandlerSuite) TestUpdateTodoToCompleted() {
 	jwtToken, _ := CreateJwtTokenForUser(user.ID)
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	http.DefaultServeMux.ServeHTTP(rr, req)
+	s.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusOK))
-	Expect(rr.Header().Get("Content-Type")).To(Equal("application/json"))
+	Expect(rr.Header().Get("Content-Type")).To(ContainSubstring("application/json"))
 
 	body, _ := io.ReadAll(rr.Body)
 
@@ -182,10 +189,10 @@ func (s *TodoHandlerSuite) TestDeleteByUUIDWhenIdExists() {
 	jwtToken, _ := CreateJwtTokenForUser(user.ID)
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	http.DefaultServeMux.ServeHTTP(rr, req)
+	s.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusOK))
-	Expect(rr.Header().Get("Content-Type")).To(Equal("application/json"))
+	Expect(rr.Header().Get("Content-Type")).To(ContainSubstring("application/json"))
 
 	body, _ := io.ReadAll(rr.Body)
 
@@ -207,10 +214,11 @@ func (s *TodoHandlerSuite) TestCreateTodoWithDifferentStatuses() {
 	jwtToken, _ := CreateJwtTokenForUser(user.ID)
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	http.DefaultServeMux.ServeHTTP(rr, req)
+	// http.DefaultServeMux.ServeHTTP(rr, req)
+	s.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusAccepted))
-	Expect(rr.Header().Get("Content-Type")).To(Equal("application/json"))
+	Expect(rr.Header().Get("Content-Type")).To(ContainSubstring("application/json"))
 
 	body, _ := io.ReadAll(rr.Body)
 
@@ -234,7 +242,8 @@ func (s *TodoHandlerSuite) TestCreateTodoWithInvalidStatus() {
 	jwtToken, _ := CreateJwtTokenForUser(user.ID)
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	http.DefaultServeMux.ServeHTTP(rr, req)
+	// http.DefaultServeMux.ServeHTTP(rr, req)
+	s.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusInternalServerError))
 }
@@ -250,7 +259,8 @@ func (s *TodoHandlerSuite) TestDeleteTodoWithSuccess() {
 	jwtToken, _ := CreateJwtTokenForUser(user.ID)
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	http.DefaultServeMux.ServeHTTP(rr, req)
+	// http.DefaultServeMux.ServeHTTP(rr, req)
+	s.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusOK))
 }
@@ -276,7 +286,8 @@ func (s *TodoHandlerSuite) TestPaginationWithCursor() {
 	jwtToken, _ := CreateJwtTokenForUser(user.ID)
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	http.DefaultServeMux.ServeHTTP(rr, req)
+	// http.DefaultServeMux.ServeHTTP(rr, req)
+	s.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusOK))
 
@@ -299,7 +310,8 @@ func (s *TodoHandlerSuite) TestPaginationWithCursor() {
 	req2, _ := http.NewRequest("GET", fmt.Sprintf("/todos?limit=2&cursor=%s", encodedCursor), nil)
 	req2.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	http.DefaultServeMux.ServeHTTP(rr2, req2)
+	// http.DefaultServeMux.ServeHTTP(rr2, req2)
+	s.Router.ServeHTTP(rr2, req2)
 
 	Expect(rr2.Code).To(Equal(http.StatusOK))
 
@@ -325,7 +337,8 @@ func (s *TodoHandlerSuite) TestPaginationWithCursor() {
 	req3, _ := http.NewRequest("GET", fmt.Sprintf("/todos?limit=2&cursor=%s", encodedCursor2), nil)
 	req3.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	http.DefaultServeMux.ServeHTTP(rr3, req3)
+	// http.DefaultServeMux.ServeHTTP(rr3, req3)
+	s.Router.ServeHTTP(rr3, req3)
 
 	Expect(rr3.Code).To(Equal(http.StatusOK))
 

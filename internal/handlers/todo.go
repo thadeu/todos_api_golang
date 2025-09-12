@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -9,7 +8,8 @@ import (
 
 	. "todoapp/internal/repositories"
 	. "todoapp/internal/services"
-	. "todoapp/internal/shared"
+
+	"github.com/gin-gonic/gin"
 )
 
 type TodoHandler struct {
@@ -20,21 +20,12 @@ func NewTodoHandler(service *TodoService) *TodoHandler {
 	return &TodoHandler{Service: service}
 }
 
-func (t *TodoHandler) Register() {
-	http.HandleFunc("GET /todos", JwtAuthMiddleware(t.GetAllTodos))
-	http.HandleFunc("POST /todos", JwtAuthMiddleware(t.CreateTodo))
-	http.HandleFunc("PUT /todo/{uuid}", JwtAuthMiddleware(t.UpdateTodo))
-	http.HandleFunc("DELETE /todos/{uuid}", JwtAuthMiddleware(t.DeleteByUUID))
-}
+func (t *TodoHandler) GetAllTodos(c *gin.Context) {
 
-func (t *TodoHandler) GetAllTodos(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	userId := c.GetInt("x-user-id")
+	cursor := c.Query("cursor")
+	limit, _ := strconv.Atoi(c.Query("limit"))
 
-	userId := r.Context().Value("x-user-id").(int)
-	cursor := r.URL.Query().Get("cursor")
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-
-	// Default limit if not specified
 	if limit <= 0 {
 		limit = 10
 	}
@@ -44,29 +35,28 @@ func (t *TodoHandler) GetAllTodos(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("Error fetching todos", "error", err)
 
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]any{"message": "Error fetching todos"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error fetching todos",
+		})
 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	json.NewEncoder(w).Encode(data)
+	c.JSON(http.StatusOK, data)
 }
 
-func (t *TodoHandler) CreateTodo(w http.ResponseWriter, r *http.Request) {
+func (t *TodoHandler) CreateTodo(c *gin.Context) {
 	startTime := time.Now()
 
-	userId := r.Context().Value("x-user-id").(int)
-	todo, err := t.Service.CreateTodo(r, userId)
+	userId := c.GetInt("x-user-id")
+	todo, err := t.Service.CreateTodo(c, userId)
 
 	if err != nil {
 		slog.Error("Error creating todo", "error", err)
 
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error creating todo",
+		})
 
 		return
 	}
@@ -81,23 +71,18 @@ func (t *TodoHandler) CreateTodo(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:   todo.UpdatedAt,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-
-	json.NewEncoder(w).Encode(response)
+	c.JSON(http.StatusAccepted, response)
 
 	endTime := time.Now()
 	slog.Info("Todo created", "time", endTime.Sub(startTime))
 }
 
-func (t *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
-	userId := r.Context().Value("x-user-id").(int)
-	todo, err := t.Service.UpdateTodoByUUID(r, userId)
+func (t *TodoHandler) UpdateTodo(c *gin.Context) {
+	userId := c.GetInt("x-user-id")
+	todo, err := t.Service.UpdateTodoByUUID(c, userId)
 
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-
-		json.NewEncoder(w).Encode(map[string]any{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"errors": []string{err.Error()},
 		})
 
@@ -114,27 +99,20 @@ func (t *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:   todo.UpdatedAt,
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-
-	json.NewEncoder(w).Encode(response)
+	c.JSON(http.StatusOK, response)
 }
 
-func (t *TodoHandler) DeleteByUUID(w http.ResponseWriter, r *http.Request) {
-	userId := r.Context().Value("x-user-id").(int)
-	_, err := t.Service.DeleteByUUID(r, userId)
+func (t *TodoHandler) DeleteByUUID(c *gin.Context) {
+	userId := c.GetInt("x-user-id")
+	_, err := t.Service.DeleteByUUID(c, userId)
 
 	if err != nil {
-		slog.Error("Error deleting todo", "error", err)
-
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		c.JSON(http.StatusBadRequest, gin.H{
+			"messages": []string{err.Error()},
+		})
 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	json.NewEncoder(w).Encode(map[string]any{"message": "Todo deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Todo deleted successfully"})
 }

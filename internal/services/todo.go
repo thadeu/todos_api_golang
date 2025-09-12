@@ -11,6 +11,7 @@ import (
 	ru "todoapp/internal/repositories"
 	c "todoapp/pkg/cursor"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
@@ -130,10 +131,10 @@ func (s *TodoService) GetAllTodos(userId int) ([]ru.TodoResponse, error) {
 	return data, nil
 }
 
-func (s *TodoService) CreateTodo(r *http.Request, userId int) (m.Todo, error) {
+func (s *TodoService) CreateTodo(c *gin.Context, userId int) (m.Todo, error) {
 	var params ru.TodoRequest
 
-	err := json.NewDecoder(r.Body).Decode(&params)
+	err := json.NewDecoder(c.Request.Body).Decode(&params)
 
 	if err != nil {
 		return m.Todo{}, err
@@ -171,11 +172,11 @@ func (s *TodoService) CreateTodo(r *http.Request, userId int) (m.Todo, error) {
 	return todo, nil
 }
 
-func (s *TodoService) UpdateTodoByUUID(r *http.Request, userId int) (m.Todo, error) {
-	id := r.PathValue("uuid")
+func (s *TodoService) UpdateTodoByUUID(c *gin.Context, userId int) (m.Todo, error) {
+	id := c.Param("uuid")
 
 	var params ru.TodoRequest
-	err := json.NewDecoder(r.Body).Decode(&params)
+	err := json.NewDecoder(c.Request.Body).Decode(&params)
 
 	if err != nil {
 		return m.Todo{}, err
@@ -192,32 +193,26 @@ func (s *TodoService) UpdateTodoByUUID(r *http.Request, userId int) (m.Todo, err
 	return todo, nil
 }
 
-func (s *TodoService) DeleteTodo(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("uuid")
+func (s *TodoService) DeleteTodo(c *gin.Context, userId int) {
+	id := c.Param("uuid")
 
 	err := s.repo.DeleteById(id)
 
 	if err != nil {
 		slog.Error("Error deleting todo", "error", err)
 
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error deleting todo",
+		})
 
 		return
 	}
 
-	resp := map[string]any{
-		"message": "User deleted successfully",
-	}
-
-	json.NewEncoder(w).Encode(resp)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	c.JSON(http.StatusOK, gin.H{"message": "Todo deleted successfully"})
 }
 
-func (s *TodoService) DeleteByUUID(r *http.Request, userId int) (map[string]any, error) {
-	id := r.PathValue("uuid")
+func (s *TodoService) DeleteByUUID(c *gin.Context, userId int) (map[string]any, error) {
+	id := c.Param("uuid")
 
 	if id == "" {
 		return nil, fmt.Errorf("ID is required")
@@ -226,7 +221,7 @@ func (s *TodoService) DeleteByUUID(r *http.Request, userId int) (map[string]any,
 	_, err := s.repo.GetByUUID(id, userId)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s", "Sorry, but your todo is not found")
 	}
 
 	if err := s.repo.DeleteByUUID(id); err != nil {

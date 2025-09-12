@@ -9,14 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	api "todoapp/internal/api"
 	. "todoapp/internal/handlers"
-	// . "todoapp/internal/models"
 	. "todoapp/internal/repositories"
 	. "todoapp/internal/services"
-
-	// . "todoapp/internal/shared"
 	. "todoapp/internal/test"
 
+	"github.com/gin-gonic/gin"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/suite"
 )
@@ -24,28 +23,34 @@ import (
 type AuthHandlerSuite struct {
 	suite.Suite
 	UserRepo *UserRepository
-	setup    *TestSetup[UserRepository]
+	Router   *gin.Engine
+	Setup    *TestSetup[UserRepository]
 }
 
 var globalAuthHandler *AuthHandler
 
 func (s *AuthHandlerSuite) SetupSuite() {
 	globalAuthHandler = &AuthHandler{}
-	globalAuthHandler.Register()
 }
 
 func (s *AuthHandlerSuite) SetupTest() {
+	gin.SetMode(gin.TestMode)
+
 	db := InitTestDB()
 
 	repo := NewUserRepository(db)
-	s.setup = SetupTest(s.T(), repo)
+	s.Setup = SetupTest(s.T(), repo)
 	s.UserRepo = NewUserRepository(db)
 
-	globalAuthHandler.Service = NewAuthService(s.setup.Repo)
+	globalAuthHandler.Service = NewAuthService(s.Setup.Repo)
+
+	s.Router = api.SetupRouter(api.HandlersConfig{
+		AuthHandler: globalAuthHandler,
+	})
 }
 
 func (s *AuthHandlerSuite) TearDownTest() {
-	TeardownTest(s.T(), s.setup)
+	TeardownTest(s.T(), s.Setup)
 }
 
 func TestAuthHandlerSuite(t *testing.T) {
@@ -63,7 +68,8 @@ func (a *AuthHandlerSuite) TestSignUpUserSuccess() {
 
 	rr := httptest.NewRecorder()
 
-	http.DefaultServeMux.ServeHTTP(rr, req)
+	// http.DefaultServeMux.ServeHTTP(rr, req)
+	a.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusOK))
 

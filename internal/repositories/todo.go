@@ -233,9 +233,9 @@ func (r *TodoRepository) GetAll(userId int) ([]m.Todo, error) {
 }
 
 func (r *TodoRepository) GetByUUID(id string, userId int) (m.Todo, error) {
-	query := "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at, deleted_at FROM todos WHERE uuid = ? AND user_id = ? AND deleted_at IS NULL LIMIT 1"
+	query := "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at FROM todos WHERE uuid = ? AND deleted_at IS NULL LIMIT 1"
 
-	row := r.db.QueryRow(query, id, userId)
+	row := r.db.QueryRow(query, id)
 
 	var todo m.Todo
 
@@ -249,10 +249,10 @@ func (r *TodoRepository) GetByUUID(id string, userId int) (m.Todo, error) {
 		&todo.UserId,
 		&todo.CreatedAt,
 		&todo.UpdatedAt,
-		&todo.DeletedAt,
 	)
 
 	if err != nil {
+		slog.Error("Error getting todo by uuid", "error", err)
 		return m.Todo{}, err
 	}
 

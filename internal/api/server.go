@@ -3,6 +3,7 @@ package api
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	. "todoapp/internal"
 	. "todoapp/internal/handlers"
@@ -14,21 +15,31 @@ func StartServer() {
 	db := InitDB()
 
 	user := NewUserRepository(db)
-	// userService := NewUserService(user)
-	// userHandler := NewUserHandler(userService)
-	// userHandler.Register()
-
 	todo := NewTodoRepository(db)
-	toService := NewTodoService(todo)
-	toHandler := NewTodoHandler(toService)
-	toHandler.Register()
 
+	todoService := NewTodoService(todo)
 	authService := NewAuthService(user)
+
+	todoHandler := NewTodoHandler(todoService)
 	authHandler := NewAuthHandler(authService)
-	authHandler.Register()
+
+	router := SetupRouter(HandlersConfig{
+		AuthHandler: authHandler,
+		TodoHandler: todoHandler,
+	})
 
 	port := GetServerPort()
 	slog.Info("Server starting", "port", port)
 
-	http.ListenAndServe(":"+port, nil)
+	srv := &http.Server{
+		Addr:         ":" + port,
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+	}
+
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Error("Server failed to start", "error", err)
+	}
+
 }

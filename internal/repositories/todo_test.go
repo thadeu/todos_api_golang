@@ -111,6 +111,5 @@ func (s *TodoRepositoryTestSuite) TestRepository_DeleteByUUID_Success() {
 
 	_, err = s.setup.Repo.GetByUUID(todo.UUID.String(), user.ID)
 
-	Expect(err).To(HaveOccurred())
 	Expect(err.Error()).To(ContainSubstring("no rows"))
 }
