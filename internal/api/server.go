@@ -13,15 +13,19 @@ import (
 func StartServer() {
 	db := InitDB()
 
-	userRepo := NewUserRepository(db)
-	userService := NewUserService(userRepo)
-	userHandler := NewUserHandler(userService)
-	userHandler.Register()
+	user := NewUserRepository(db)
+	// userService := NewUserService(user)
+	// userHandler := NewUserHandler(userService)
+	// userHandler.Register()
 
-	todoRepo := NewTodoRepository(db)
-	toService := NewTodoService(todoRepo)
+	todo := NewTodoRepository(db)
+	toService := NewTodoService(todo)
 	toHandler := NewTodoHandler(toService)
 	toHandler.Register()
+
+	authService := NewAuthService(user)
+	authHandler := NewAuthHandler(authService)
+	authHandler.Register()
 
 	port := GetServerPort()
 	slog.Info("Server starting", "port", port)

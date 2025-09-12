@@ -21,6 +21,28 @@ func NewTodoService(repo *ru.TodoRepository) *TodoService {
 	return &TodoService{repo: repo}
 }
 
+func (s *TodoService) StatusOrFallback(todo m.Todo, fallback ...string) string {
+	status := func() string {
+		defer func() {
+			if r := recover(); r != nil {
+				// slog.Warn("Invalid todo status, using fallback", "status", todo.Status, "uuid", todo.UUID)
+			}
+		}()
+
+		return ru.TodoStatus(todo.Status).String()
+	}()
+
+	if status == "" {
+		if len(fallback) > 0 && fallback[0] != "" {
+			status = fallback[0]
+		} else {
+			status = "unknown"
+		}
+	}
+
+	return status
+}
+
 func (s *TodoService) GetAllTodos(userId int) ([]ru.TodoResponse, error) {
 	rows, err := s.repo.GetAll(userId)
 
@@ -35,6 +57,7 @@ func (s *TodoService) GetAllTodos(userId int) ([]ru.TodoResponse, error) {
 			UUID:        todo.UUID,
 			Title:       todo.Title,
 			Description: todo.Description,
+			Status:      s.StatusOrFallback(todo),
 			Completed:   todo.Completed,
 			CreatedAt:   todo.CreatedAt,
 			UpdatedAt:   todo.UpdatedAt,
@@ -57,10 +80,11 @@ func (s *TodoService) CreateTodo(r *http.Request, userId int) (m.Todo, error) {
 
 	now := time.Now()
 
-	newUser := m.Todo{
+	newTodo := m.Todo{
 		UUID:        uuid.New(),
 		Title:       params.Title,
 		Description: params.Description,
+		Status:      params.Status,
 		Completed:   params.Completed,
 		UserId:      userId,
 		CreatedAt:   now,
@@ -68,7 +92,26 @@ func (s *TodoService) CreateTodo(r *http.Request, userId int) (m.Todo, error) {
 		DeletedAt:   nil,
 	}
 
-	todo, err := s.repo.Create(newUser)
+	todo, err := s.repo.Create(newTodo)
+
+	if err != nil {
+		return m.Todo{}, err
+	}
+
+	return todo, nil
+}
+
+func (s *TodoService) UpdateTodoByUUID(r *http.Request, userId int) (m.Todo, error) {
+	id := r.PathValue("uuid")
+
+	var params ru.TodoRequest
+	err := json.NewDecoder(r.Body).Decode(&params)
+
+	if err != nil {
+		return m.Todo{}, err
+	}
+
+	todo, err := s.repo.UpdateByUUID(id, userId, params)
 
 	if err != nil {
 		return m.Todo{}, err
@@ -78,7 +121,7 @@ func (s *TodoService) CreateTodo(r *http.Request, userId int) (m.Todo, error) {
 }
 
 func (s *TodoService) DeleteTodo(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+	id := r.PathValue("uuid")
 
 	err := s.repo.DeleteById(id)
 

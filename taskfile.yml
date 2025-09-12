@@ -25,6 +25,7 @@ tasks:
 
   dev:
     dotenv: ['.env']
+    deps: [test]
     cmds:
       - air -c .air.api.toml
 
@@ -42,6 +43,7 @@ tasks:
   
   # task migrate:up
   migrate:up:
+    aliases: [mu]
     dir: db
     silent: true
     cmds:
@@ -50,6 +52,7 @@ tasks:
 
   # task migrate:up
   migrate:down:
+    aliases: [md]
     dir: db
     silent: true
     cmds:

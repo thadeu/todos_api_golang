@@ -6,6 +6,8 @@ import (
 	"time"
 	"todoapp/internal/factories"
 
+	. "github.com/onsi/gomega"
+
 	. "todoapp/internal/models"
 	. "todoapp/internal/repositories"
 	. "todoapp/internal/test"
@@ -33,6 +35,7 @@ func (s *TodoRepositoryTestSuite) TearDownTest() {
 }
 
 func TestTodoRepositoryTestSuite(t *testing.T) {
+	RegisterTestingT(t)
 	suite.Run(t, new(TodoRepositoryTestSuite))
 }
 
@@ -50,23 +53,22 @@ func (s *TodoRepositoryTestSuite) TestRepository_GetAllUsers_WithData() {
 		"UserId": user.ID,
 	}))
 
-	s.setup.Repo.Create(factories.NewTodo[Todo](map[string]any{
-		"UserId": user.ID,
-	}))
-
-	users, err := s.setup.Repo.GetAll(user.ID)
+	data, err := s.setup.Repo.GetAll(user.ID)
 
 	assert.NoError(s.T(), err)
-	assert.Len(s.T(), users, 2)
+	assert.Len(s.T(), data, 1)
 }
 
-func (s *TodoRepositoryTestSuite) TestRepository_CreateUser_Success() {
+func (s *TodoRepositoryTestSuite) TestRepository_CreateTodo_Success() {
 	user, _ := s.UserRepo.CreateUser(factories.NewUser[User]())
+
+	status := int(TodoStatusPending)
 
 	todo, err := s.setup.Repo.Create(Todo{
 		UUID:        uuid.New(),
 		Title:       "My User",
 		Description: "Some description",
+		Status:      status,
 		Completed:   false,
 		UserId:      user.ID,
 		CreatedAt:   time.Now(),
@@ -109,6 +111,6 @@ func (s *TodoRepositoryTestSuite) TestRepository_DeleteByUUID_Success() {
 
 	_, err = s.setup.Repo.GetByUUID(todo.UUID.String(), user.ID)
 
-	assert.Contains(s.T(), err.Error(), "no rows")
-	assert.Error(s.T(), err)
+	Expect(err).To(HaveOccurred())
+	Expect(err.Error()).To(ContainSubstring("no rows"))
 }

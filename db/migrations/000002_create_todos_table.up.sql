@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS todos (
   uuid text not null,
   title text not null,
   description text,
+  status integer not null default 0,
   completed boolean not null default false,
   user_id integer not null,
   created_at timestamp not null default current_timestamp,
@@ -12,7 +13,4 @@ CREATE TABLE IF NOT EXISTS todos (
   FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
-
 CREATE UNIQUE INDEX IF NOT EXISTS idx_todos_uuid_unique ON todos (uuid);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_todos_title_unique ON todos (title);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_todos_completed_unique ON todos (completed);

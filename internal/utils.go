@@ -9,6 +9,10 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
+	sqldblogger "github.com/simukti/sqldb-logger"
+
+	"github.com/rs/zerolog"
+	"github.com/simukti/sqldb-logger/logadapter/zerologadapter"
 )
 
 func InitDB() *sql.DB {
@@ -19,6 +23,11 @@ func InitDB() *sql.DB {
 	}
 
 	db, err := sql.Open("sqlite3", dbPath)
+
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	logger := zerolog.New(os.Stdout)
+
+	db = sqldblogger.OpenDriver(dbPath, db.Driver(), zerologadapter.New(logger))
 
 	if err != nil {
 		log.Fatal(err)

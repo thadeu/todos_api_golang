@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"time"
 
 	. "todoapp/internal/repositories"
 	. "todoapp/internal/services"
+	. "todoapp/internal/shared"
 )
 
 type TodoHandler struct {
@@ -20,24 +20,17 @@ func NewTodoHandler(service *TodoService) *TodoHandler {
 }
 
 func (t *TodoHandler) Register() {
-	http.HandleFunc("GET /todos", t.GetAllTodos)
-	http.HandleFunc("POST /todos", t.CreateTodo)
-	http.HandleFunc("DELETE /todos/{uuid}", t.DeleteByUUID)
+	http.HandleFunc("GET /todos", JwtAuthMiddleware(t.GetAllTodos))
+	http.HandleFunc("POST /todos", JwtAuthMiddleware(t.CreateTodo))
+	http.HandleFunc("PUT /todo/{uuid}", JwtAuthMiddleware(t.UpdateTodo))
+	http.HandleFunc("DELETE /todos/{uuid}", JwtAuthMiddleware(t.DeleteByUUID))
 }
 
 func (t *TodoHandler) GetAllTodos(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	userId, err := strconv.Atoi(r.Header.Get("X-User-ID"))
-
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]any{"message": "Unauthorized request"})
-
-		return
-	}
-
-	users, err := t.Service.GetAllTodos(userId)
+	userId := r.Context().Value("x-user-id").(int)
+	data, err := t.Service.GetAllTodos(userId)
 
 	if err != nil {
 		slog.Error("Error fetching todos", "error", err)
@@ -51,25 +44,17 @@ func (t *TodoHandler) GetAllTodos(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	json.NewEncoder(w).Encode(GetAllTodosResponse{Data: users, Size: len(users)})
+	json.NewEncoder(w).Encode(GetAllTodosResponse{Data: data, Size: len(data)})
 }
 
 func (t *TodoHandler) CreateTodo(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
-	userId, err := strconv.Atoi(r.Header.Get("X-User-ID"))
-
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]any{"message": "Unauthorized request"})
-
-		return
-	}
-
+	userId := r.Context().Value("x-user-id").(int)
 	todo, err := t.Service.CreateTodo(r, userId)
 
 	if err != nil {
-		slog.Error("Error creating user", "error", err)
+		slog.Error("Error creating todo", "error", err)
 
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
@@ -81,6 +66,7 @@ func (t *TodoHandler) CreateTodo(w http.ResponseWriter, r *http.Request) {
 		UUID:        todo.UUID,
 		Title:       todo.Title,
 		Description: todo.Description,
+		Status:      t.Service.StatusOrFallback(todo),
 		Completed:   todo.Completed,
 		CreatedAt:   todo.CreatedAt,
 		UpdatedAt:   todo.UpdatedAt,
@@ -95,19 +81,39 @@ func (t *TodoHandler) CreateTodo(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Todo created", "time", endTime.Sub(startTime))
 }
 
-func (t *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {}
-
-func (t *TodoHandler) DeleteByUUID(w http.ResponseWriter, r *http.Request) {
-	userId, err := strconv.Atoi(r.Header.Get("X-User-ID"))
+func (t *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
+	userId := r.Context().Value("x-user-id").(int)
+	todo, err := t.Service.UpdateTodoByUUID(r, userId)
 
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]any{"message": "Unauthorized request"})
+		w.WriteHeader(http.StatusBadRequest)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"errors": []string{err.Error()},
+		})
 
 		return
 	}
 
-	_, err = t.Service.DeleteByUUID(r, userId)
+	response := TodoResponse{
+		UUID:        todo.UUID,
+		Title:       todo.Title,
+		Description: todo.Description,
+		Status:      t.Service.StatusOrFallback(todo),
+		Completed:   todo.Completed,
+		CreatedAt:   todo.CreatedAt,
+		UpdatedAt:   todo.UpdatedAt,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func (t *TodoHandler) DeleteByUUID(w http.ResponseWriter, r *http.Request) {
+	userId := r.Context().Value("x-user-id").(int)
+	_, err := t.Service.DeleteByUUID(r, userId)
 
 	if err != nil {
 		slog.Error("Error deleting todo", "error", err)

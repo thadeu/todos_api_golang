@@ -11,6 +11,7 @@ type Todo struct {
 	UUID        uuid.UUID
 	Title       string
 	Description string
+	Status      int
 	Completed   bool
 	UserId      int
 	CreatedAt   time.Time

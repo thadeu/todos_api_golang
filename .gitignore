@@ -1,5 +1,6 @@
 .DS_Store
 db/database.db
+.cursor
 
 tmp/
 

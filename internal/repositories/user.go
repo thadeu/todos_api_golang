@@ -13,8 +13,9 @@ import (
 )
 
 type UserRequest struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	Name     string `json:"name,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 type UserResponse struct {
@@ -44,7 +45,7 @@ func (r *UserRepository) Save(user m.User) (m.User, error) {
 }
 
 func (r *UserRepository) CreateUser(user m.User) (m.User, error) {
-	stmt, err := r.db.Prepare("INSERT INTO users (uuid, name, email, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?)")
+	stmt, err := r.db.Prepare("INSERT INTO users (uuid, name, email, encrypted_password, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
 
 	if err != nil {
 		return m.User{}, err
@@ -54,7 +55,15 @@ func (r *UserRepository) CreateUser(user m.User) (m.User, error) {
 
 	uuid := user.UUID.String()
 
-	_, err = stmt.Exec(uuid, user.Name, user.Email, user.CreatedAt, user.UpdatedAt, nil)
+	_, err = stmt.Exec(
+		uuid,
+		user.Name,
+		user.Email,
+		user.EncryptedPassword,
+		user.CreatedAt,
+		user.UpdatedAt,
+		nil,
+	)
 
 	if err != nil {
 		return m.User{}, err
@@ -70,7 +79,7 @@ func (r *UserRepository) CreateUser(user m.User) (m.User, error) {
 }
 
 func (r *UserRepository) GetAllUsers() ([]m.User, error) {
-	rows, err := r.db.Query("SELECT * FROM users WHERE deleted_at IS NULL ORDER BY updated_at DESC")
+	rows, err := r.db.Query("SELECT id, uuid, name, email, encrypted_password, created_at, updated_at FROM users WHERE deleted_at IS NULL ORDER BY updated_at DESC")
 
 	if err != nil {
 		slog.Error("Error fetching users", "error", err)
@@ -85,7 +94,7 @@ func (r *UserRepository) GetAllUsers() ([]m.User, error) {
 		var user m.User
 		var uuidStr string
 
-		err = rows.Scan(&user.ID, &uuidStr, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt, &user.DeletedAt)
+		err = rows.Scan(&user.ID, &uuidStr, &user.Name, &user.Email, &user.EncryptedPassword, &user.CreatedAt, &user.UpdatedAt)
 
 		if err != nil {
 			return []m.User{}, err
@@ -123,7 +132,7 @@ func (r *UserRepository) DeleteUser(id string) error {
 }
 
 func (r *UserRepository) GetUserByUUID(uuid string) (m.User, error) {
-	query := "SELECT * FROM users WHERE uuid = ? AND deleted_at IS NULL LIMIT 1"
+	query := "SELECT id, uuid, name, email, encrypted_password, created_at, updated_at FROM users WHERE uuid = ? AND deleted_at IS NULL LIMIT 1"
 
 	row := r.db.QueryRow(query, uuid)
 
@@ -134,6 +143,32 @@ func (r *UserRepository) GetUserByUUID(uuid string) (m.User, error) {
 		&user.UUID,
 		&user.Name,
 		&user.Email,
+		&user.EncryptedPassword,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		return m.User{}, err
+	}
+
+	return user, nil
+}
+
+func (r *UserRepository) GetUserById(id string) (m.User, error) {
+	query := "SELECT id, uuid, name, email, encrypted_password, created_at, updated_at, deleted_at FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1"
+
+	row := r.db.QueryRow(query, id)
+
+	var user m.User
+	var uuidStr string
+
+	err := row.Scan(
+		&user.ID,
+		&uuidStr,
+		&user.Name,
+		&user.Email,
+		&user.EncryptedPassword,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 		&user.DeletedAt,
@@ -146,18 +181,27 @@ func (r *UserRepository) GetUserByUUID(uuid string) (m.User, error) {
 	return user, nil
 }
 
-func (r *UserRepository) GetUserById(id string) (m.User, error) {
-	query := "SELECT * FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1"
+func (r *UserRepository) GetUserByEmail(email string) (m.User, error) {
+	query := "SELECT id, uuid, name, email, encrypted_password, created_at, updated_at FROM users WHERE email = ? LIMIT 1"
 
-	row := r.db.QueryRow(query, id)
+	row := r.db.QueryRow(query, email)
 
 	var user m.User
-	var uuidStr string
 
-	err := row.Scan(&user.ID, &uuidStr, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt, &user.DeletedAt)
+	scanErr := row.Scan(
+		&user.ID,
+		&user.UUID,
+		&user.Name,
+		&user.Email,
+		&user.EncryptedPassword,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
 
-	if err != nil {
-		return m.User{}, err
+	slog.Info("User", "user", user)
+
+	if scanErr != nil {
+		return user, scanErr
 	}
 
 	return user, nil
