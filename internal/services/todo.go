@@ -9,6 +9,7 @@ import (
 
 	m "todoapp/internal/models"
 	ru "todoapp/internal/repositories"
+	"todoapp/internal/shared"
 	c "todoapp/pkg/cursor"
 
 	"github.com/gin-gonic/gin"
@@ -140,8 +141,8 @@ func (s *TodoService) CreateTodo(c *gin.Context, userId int) (m.Todo, error) {
 		return m.Todo{}, err
 	}
 
-	// Converter status string para int
-	statusInt := 0 // default para pending
+	statusInt := 0
+
 	if params.Status != "" {
 		statusInt, err = ru.StatusToEnum(params.Status)
 		if err != nil {
@@ -163,6 +164,13 @@ func (s *TodoService) CreateTodo(c *gin.Context, userId int) (m.Todo, error) {
 		DeletedAt:   nil,
 	}
 
+	if err := shared.Validator.Struct(newTodo); err != nil {
+		errors := shared.FormatValidationErrors(err)
+		slog.Error("Falha na validação do Todo", "errors", errors)
+
+		return m.Todo{}, fmt.Errorf("%v", errors[len(errors)-1].Message)
+	}
+
 	todo, err := s.repo.Create(newTodo)
 
 	if err != nil {
@@ -182,7 +190,12 @@ func (s *TodoService) UpdateTodoByUUID(c *gin.Context, userId int) (m.Todo, erro
 		return m.Todo{}, err
 	}
 
-	// A conversão de status string para int é feita no repository
+	if err := shared.Validator.Struct(params); err != nil {
+		validationErrors := shared.FormatValidationErrors(err)
+		slog.Error("Falha na validação do Todo", "errors", validationErrors)
+
+		return m.Todo{}, fmt.Errorf("%v", validationErrors[len(validationErrors)-1].Message)
+	}
 
 	todo, err := s.repo.UpdateByUUID(id, userId, params)
 
@@ -199,29 +212,29 @@ func (s *TodoService) DeleteTodo(c *gin.Context, userId int) {
 	err := s.repo.DeleteById(id)
 
 	if err != nil {
-		slog.Error("Error deleting todo", "error", err)
+		slog.Error("Erro ao deletar todo", "error", err)
 
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error deleting todo",
+			"message": "Erro ao deletar todo",
 		})
 
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Todo deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Todo deletado com sucesso"})
 }
 
 func (s *TodoService) DeleteByUUID(c *gin.Context, userId int) (map[string]any, error) {
 	id := c.Param("uuid")
 
 	if id == "" {
-		return nil, fmt.Errorf("ID is required")
+		return nil, fmt.Errorf("ID é obrigatório")
 	}
 
 	_, err := s.repo.GetByUUID(id, userId)
 
 	if err != nil {
-		return nil, fmt.Errorf("%s", "Sorry, but your todo is not found")
+		return nil, fmt.Errorf("desculpe, mas seu todo não foi encontrado")
 	}
 
 	if err := s.repo.DeleteByUUID(id); err != nil {

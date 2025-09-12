@@ -9,10 +9,10 @@ import (
 type Todo struct {
 	ID          int
 	UUID        uuid.UUID
-	Title       string
-	Description string
+	Title       string `validate:"required,min=4,max=255"`
+	Description string `validate:"max=255"`
 	Status      int
-	Completed   bool
+	Completed   bool `validate:"boolean"`
 	UserId      int
 	CreatedAt   time.Time
 	UpdatedAt   time.Time

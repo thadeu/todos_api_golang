@@ -55,7 +55,7 @@ func (t *TodoHandler) CreateTodo(c *gin.Context) {
 		slog.Error("Error creating todo", "error", err)
 
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error creating todo",
+			"messages": []string{err.Error()},
 		})
 
 		return
