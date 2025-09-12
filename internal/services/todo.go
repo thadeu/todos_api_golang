@@ -83,7 +83,8 @@ func (s *TodoService) GetTodosWithPagination(userId int, limit int, cursor strin
 	var nextCursor string
 
 	if hasNext && len(rows) > 0 {
-		nextCursor = c.EncodeCursor("", rows[len(rows)-1].ID)
+		lastTodo := rows[len(rows)-1]
+		nextCursor = c.EncodeCursor(lastTodo.CreatedAt.Format(time.RFC3339), lastTodo.ID)
 	}
 
 	dataBytes, _ := json.Marshal(data)

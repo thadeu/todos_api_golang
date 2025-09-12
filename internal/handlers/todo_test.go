@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 	"todoapp/internal/factories"
 
 	. "todoapp/internal/handlers"
@@ -257,12 +258,14 @@ func (s *TodoHandlerSuite) TestDeleteTodoWithSuccess() {
 func (s *TodoHandlerSuite) TestPaginationWithCursor() {
 	user := CreateUser(s)
 
-	// Create 5 todos
+	baseTime := time.Now()
+
 	for i := 1; i <= 5; i++ {
 		s.setup.Repo.Create(factories.NewTodo[Todo](map[string]any{
-			"Title":  fmt.Sprintf("Task %d", i),
-			"Status": int(TodoStatusPending),
-			"UserId": user.ID,
+			"Title":     fmt.Sprintf("Task %d", i),
+			"Status":    int(TodoStatusPending),
+			"UserId":    user.ID,
+			"CreatedAt": baseTime.Add(time.Duration(i) * time.Minute), // Task 5 is newest
 		}))
 	}
 

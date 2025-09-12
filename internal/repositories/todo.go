@@ -123,18 +123,28 @@ func (r *TodoRepository) GetAllWithCursor(userId int, limit int, cursor string) 
 	var args []interface{}
 
 	if cursor == "" {
-		query = "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at FROM todos WHERE user_id = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT ?"
+		// First page - order by created_at DESC, then by id DESC for consistency
+		query = "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at FROM todos WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT ?"
 		args = []interface{}{userId, actualLimit}
 	} else {
-		_, id, err := c.DecodeCursor(cursor)
+		datetimeStr, id, err := c.DecodeCursor(cursor)
 
 		if err != nil {
 			slog.Error("Error decoding cursor", "error", err)
 			return []m.Todo{}, false, err
 		}
 
-		query = "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at FROM todos WHERE user_id = ? AND id < ? AND deleted_at IS NULL ORDER BY id DESC LIMIT ?"
-		args = []interface{}{userId, id, actualLimit}
+		// Parse the datetime string to ensure proper comparison
+		datetime, err := time.Parse(time.RFC3339, datetimeStr)
+
+		if err != nil {
+			slog.Error("Error parsing cursor datetime", "error", err, "datetime", datetimeStr)
+			return []m.Todo{}, false, err
+		}
+
+		// Use compound cursor: created_at < ? OR (created_at = ? AND id < ?)
+		query = "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at FROM todos WHERE user_id = ? AND (created_at < ? OR (created_at = ? AND id < ?)) AND deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT ?"
+		args = []interface{}{userId, datetime, datetime, id, actualLimit}
 	}
 
 	stmt, err := r.db.Prepare(query)
