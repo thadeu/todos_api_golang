@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"testing"
 	"todoapp/internal/factories"
@@ -106,7 +105,7 @@ func (s *TodoHandlerSuite) TestGetAllTodosWithData() {
 func (s *TodoHandlerSuite) TestCreateTodo() {
 	user := CreateUser(s)
 
-	reqBody := strings.NewReader(`{"title": "User2", "description": "user2@example.com", "status": ` + strconv.Itoa(int(TodoStatusPending)) + `, "completed": false}`)
+	reqBody := strings.NewReader(`{"title": "User2", "description": "user2@example.com", "status": "pending", "completed": false}`)
 
 	req, _ := http.NewRequest("POST", "/todos", reqBody)
 	rr := httptest.NewRecorder()
@@ -135,7 +134,7 @@ func (s *TodoHandlerSuite) TestUpdateTodoToCompleted() {
 
 	reqBody := strings.NewReader(`{
 		"title": "Task Updated",
-		"status": 3,
+		"status": "completed",
 		"completed": true
 	}`)
 
@@ -188,4 +187,48 @@ func (s *TodoHandlerSuite) TestDeleteByUUIDWhenIdExists() {
 	json.Unmarshal(body, &data)
 
 	Expect(data["message"]).To(Equal("Todo deleted successfully"))
+}
+
+func (s *TodoHandlerSuite) TestCreateTodoWithDifferentStatuses() {
+	user := CreateUser(s)
+
+	// Test with in_review status
+	reqBody := strings.NewReader(`{"title": "Review Task", "description": "Task in review", "status": "in_review", "completed": false}`)
+
+	req, _ := http.NewRequest("POST", "/todos", reqBody)
+	rr := httptest.NewRecorder()
+
+	jwtToken, _ := CreateJwtTokenForUser(user.ID)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+
+	http.DefaultServeMux.ServeHTTP(rr, req)
+
+	Expect(rr.Code).To(Equal(http.StatusAccepted))
+	Expect(rr.Header().Get("Content-Type")).To(Equal("application/json"))
+
+	body, _ := io.ReadAll(rr.Body)
+
+	data := TodoResponse{}
+	json.Unmarshal(body, &data)
+
+	Expect(data.Title).To(Equal("Review Task"))
+	Expect(data.Status).To(Equal("in_review"))
+	Expect(data.UUID).To(Not(BeEmpty()))
+}
+
+func (s *TodoHandlerSuite) TestCreateTodoWithInvalidStatus() {
+	user := CreateUser(s)
+
+	// Test with invalid status
+	reqBody := strings.NewReader(`{"title": "Invalid Task", "description": "Task with invalid status", "status": "invalid_status", "completed": false}`)
+
+	req, _ := http.NewRequest("POST", "/todos", reqBody)
+	rr := httptest.NewRecorder()
+
+	jwtToken, _ := CreateJwtTokenForUser(user.ID)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+
+	http.DefaultServeMux.ServeHTTP(rr, req)
+
+	Expect(rr.Code).To(Equal(http.StatusInternalServerError))
 }

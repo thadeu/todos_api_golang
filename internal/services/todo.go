@@ -78,13 +78,22 @@ func (s *TodoService) CreateTodo(r *http.Request, userId int) (m.Todo, error) {
 		return m.Todo{}, err
 	}
 
+	// Converter status string para int
+	statusInt := 0 // default para pending
+	if params.Status != "" {
+		statusInt, err = ru.StatusToEnum(params.Status)
+		if err != nil {
+			return m.Todo{}, err
+		}
+	}
+
 	now := time.Now()
 
 	newTodo := m.Todo{
 		UUID:        uuid.New(),
 		Title:       params.Title,
 		Description: params.Description,
-		Status:      params.Status,
+		Status:      statusInt,
 		Completed:   params.Completed,
 		UserId:      userId,
 		CreatedAt:   now,
@@ -110,6 +119,8 @@ func (s *TodoService) UpdateTodoByUUID(r *http.Request, userId int) (m.Todo, err
 	if err != nil {
 		return m.Todo{}, err
 	}
+
+	// A conversão de status string para int é feita no repository
 
 	todo, err := s.repo.UpdateByUUID(id, userId, params)
 

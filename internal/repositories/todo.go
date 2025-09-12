@@ -26,10 +26,25 @@ func (t TodoStatus) String() string {
 	return []string{"pending", "in_progress", "in_review", "completed"}[t]
 }
 
+func StatusToEnum(status string) (int, error) {
+	switch strings.ToLower(status) {
+	case "pending":
+		return int(TodoStatusPending), nil
+	case "in_progress":
+		return int(TodoStatusInProgress), nil
+	case "in_review":
+		return int(TodoStatusInReview), nil
+	case "completed":
+		return int(TodoStatusCompleted), nil
+	default:
+		return 0, fmt.Errorf("invalid status: %s. Valid statuses are: pending, in_progress, in_review, completed", status)
+	}
+}
+
 type TodoRequest struct {
 	Title       string     `json:"title"`
 	Description string     `json:"description,omitempty"`
-	Status      int        `json:"status,omitempty"`
+	Status      string     `json:"status,omitempty"`
 	Completed   bool       `json:"completed,omitempty"`
 	CreatedAt   time.Time  `json:"created_at,omitempty"`
 	UpdatedAt   time.Time  `json:"updated_at,omitempty"`
@@ -37,13 +52,13 @@ type TodoRequest struct {
 }
 
 type TodoResponse struct {
-	UUID        uuid.UUID `json:"uuid,omitempty"`
-	Title       string    `json:"title,omitempty"`
-	Description string    `json:"description,omitempty"`
+	UUID        uuid.UUID `json:"uuid"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
 	Status      string    `json:"status"`
 	Completed   bool      `json:"completed"`
-	CreatedAt   time.Time `json:"created_at,omitempty"`
-	UpdatedAt   time.Time `json:"updated_at,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type GetAllTodosResponse struct {
@@ -209,6 +224,23 @@ func (r *TodoRepository) UpdateByUUID(id string, userId int, params TodoRequest)
 		}
 
 		columnName := strings.ToLower(fieldType.Name)
+
+		if fieldType.Name == "Status" && field.Kind() == reflect.String {
+			statusStr := field.String()
+
+			if statusStr != "" {
+				statusInt, err := StatusToEnum(statusStr)
+
+				if err != nil {
+					return m.Todo{}, err
+				}
+
+				setParts = append(setParts, fmt.Sprintf("%s = ?", columnName))
+				args = append(args, statusInt)
+
+				continue
+			}
+		}
 
 		setParts = append(setParts, fmt.Sprintf("%s = ?", columnName))
 		args = append(args, field.Interface())
