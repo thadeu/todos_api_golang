@@ -232,3 +232,19 @@ func (s *TodoHandlerSuite) TestCreateTodoWithInvalidStatus() {
 
 	Expect(rr.Code).To(Equal(http.StatusInternalServerError))
 }
+
+func (s *TodoHandlerSuite) TestDeleteTodoWithSuccess() {
+	user := CreateUser(s)
+	todo := CreateTodo(s, user.ID)
+
+	path := fmt.Sprintf("/todos/%s", todo.UUID.String())
+	req, _ := http.NewRequest("DELETE", path, nil)
+	rr := httptest.NewRecorder()
+
+	jwtToken, _ := CreateJwtTokenForUser(user.ID)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+
+	http.DefaultServeMux.ServeHTTP(rr, req)
+
+	Expect(rr.Code).To(Equal(http.StatusOK))
+}

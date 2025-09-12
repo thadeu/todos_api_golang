@@ -116,7 +116,7 @@ func (r *TodoRepository) Create(todo m.Todo) (m.Todo, error) {
 }
 
 func (r *TodoRepository) GetAll(userId int) ([]m.Todo, error) {
-	query := "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at FROM todos WHERE user_id = ? ORDER BY id DESC"
+	query := "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at FROM todos WHERE user_id = ? AND deleted_at IS NULL ORDER BY id DESC"
 
 	stmt, err := r.db.Prepare(query)
 
