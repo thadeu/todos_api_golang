@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"todoapp/internal/factories"
@@ -16,6 +17,7 @@ import (
 	. "todoapp/internal/services"
 	. "todoapp/internal/shared"
 	. "todoapp/internal/test"
+	c "todoapp/pkg/cursor"
 
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/suite"
@@ -92,13 +94,16 @@ func (s *TodoHandlerSuite) TestGetAllTodosWithData() {
 
 	body, _ := io.ReadAll(rr.Body)
 
-	data := GetAllTodosResponse{}
+	data := c.CursorResponse{}
 	json.Unmarshal(body, &data)
 
-	Expect(len(data.Data)).To(Equal(1))
+	var todos []TodoResponse
+	json.Unmarshal(data.Data, &todos)
+
+	Expect(len(todos)).To(Equal(1))
 	Expect(data.Size).To(Equal(1))
 
-	first := data.Data[0]
+	first := todos[0]
 	Expect(first.Title).To(Equal("99"))
 }
 
@@ -247,4 +252,105 @@ func (s *TodoHandlerSuite) TestDeleteTodoWithSuccess() {
 	http.DefaultServeMux.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusOK))
+}
+
+func (s *TodoHandlerSuite) TestPaginationWithCursor() {
+	user := CreateUser(s)
+
+	// Create 5 todos
+	for i := 1; i <= 5; i++ {
+		s.setup.Repo.Create(factories.NewTodo[Todo](map[string]any{
+			"Title":  fmt.Sprintf("Task %d", i),
+			"Status": int(TodoStatusPending),
+			"UserId": user.ID,
+		}))
+	}
+
+	// Test first page (limit=2)
+	rr := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/todos?limit=2", nil)
+
+	jwtToken, _ := CreateJwtTokenForUser(user.ID)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+
+	http.DefaultServeMux.ServeHTTP(rr, req)
+
+	Expect(rr.Code).To(Equal(http.StatusOK))
+
+	body, _ := io.ReadAll(rr.Body)
+	data := c.CursorResponse{}
+	json.Unmarshal(body, &data)
+
+	var todos []TodoResponse
+	json.Unmarshal(data.Data, &todos)
+
+	// First page should have 2 items and hasNext=true
+	Expect(len(todos)).To(Equal(2))
+	Expect(data.Size).To(Equal(2))
+	Expect(data.Pagination.HasNext).To(BeTrue())
+	Expect(data.Pagination.NextCursor).ToNot(BeEmpty())
+
+	// Test second page using the cursor
+	rr2 := httptest.NewRecorder()
+	encodedCursor := url.QueryEscape(data.Pagination.NextCursor)
+	req2, _ := http.NewRequest("GET", fmt.Sprintf("/todos?limit=2&cursor=%s", encodedCursor), nil)
+	req2.Header.Set("Authorization", "Bearer "+jwtToken)
+
+	http.DefaultServeMux.ServeHTTP(rr2, req2)
+
+	Expect(rr2.Code).To(Equal(http.StatusOK))
+
+	body2, _ := io.ReadAll(rr2.Body)
+	data2 := c.CursorResponse{}
+	json.Unmarshal(body2, &data2)
+
+	var todos2 []TodoResponse
+	json.Unmarshal(data2.Data, &todos2)
+
+	// Second page should have 2 items and hasNext=true
+	Expect(len(todos2)).To(Equal(2))
+	Expect(data2.Size).To(Equal(2))
+	Expect(data2.Pagination.HasNext).To(BeTrue())
+	Expect(data2.Pagination.NextCursor).ToNot(BeEmpty())
+
+	// Verify the cursors are different
+	Expect(data2.Pagination.NextCursor).ToNot(Equal(data.Pagination.NextCursor))
+
+	// Test third page
+	rr3 := httptest.NewRecorder()
+	encodedCursor2 := url.QueryEscape(data2.Pagination.NextCursor)
+	req3, _ := http.NewRequest("GET", fmt.Sprintf("/todos?limit=2&cursor=%s", encodedCursor2), nil)
+	req3.Header.Set("Authorization", "Bearer "+jwtToken)
+
+	http.DefaultServeMux.ServeHTTP(rr3, req3)
+
+	Expect(rr3.Code).To(Equal(http.StatusOK))
+
+	body3, _ := io.ReadAll(rr3.Body)
+	data3 := c.CursorResponse{}
+	json.Unmarshal(body3, &data3)
+
+	var todos3 []TodoResponse
+	json.Unmarshal(data3.Data, &todos3)
+
+	// Third page should have 1 item and hasNext=false
+	Expect(len(todos3)).To(Equal(1))
+	Expect(data3.Size).To(Equal(1))
+	Expect(data3.Pagination.HasNext).To(BeFalse())
+	Expect(data3.Pagination.NextCursor).To(BeEmpty())
+
+	// Verify all todos are different
+	allTitles := []string{}
+	for _, todo := range todos {
+		allTitles = append(allTitles, todo.Title)
+	}
+	for _, todo := range todos2 {
+		allTitles = append(allTitles, todo.Title)
+	}
+	for _, todo := range todos3 {
+		allTitles = append(allTitles, todo.Title)
+	}
+
+	// Should have 5 unique titles
+	Expect(len(allTitles)).To(Equal(5))
 }

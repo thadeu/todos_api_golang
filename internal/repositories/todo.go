@@ -9,6 +9,7 @@ import (
 	"time"
 
 	m "todoapp/internal/models"
+	c "todoapp/pkg/cursor"
 
 	"github.com/google/uuid"
 )
@@ -113,6 +114,70 @@ func (r *TodoRepository) Create(todo m.Todo) (m.Todo, error) {
 	}
 
 	return saved, nil
+}
+
+func (r *TodoRepository) GetAllWithCursor(userId int, limit int, cursor string) ([]m.Todo, bool, error) {
+	actualLimit := limit + 1
+
+	var query string
+	var args []interface{}
+
+	if cursor == "" {
+		query = "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at FROM todos WHERE user_id = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT ?"
+		args = []interface{}{userId, actualLimit}
+	} else {
+		_, id, err := c.DecodeCursor(cursor)
+
+		if err != nil {
+			slog.Error("Error decoding cursor", "error", err)
+			return []m.Todo{}, false, err
+		}
+
+		query = "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at FROM todos WHERE user_id = ? AND id < ? AND deleted_at IS NULL ORDER BY id DESC LIMIT ?"
+		args = []interface{}{userId, id, actualLimit}
+	}
+
+	stmt, err := r.db.Prepare(query)
+
+	if err != nil {
+		slog.Error("Error fetching todos", "error", err)
+		return []m.Todo{}, false, err
+	}
+
+	defer stmt.Close()
+
+	rows, err := stmt.Query(args...)
+
+	if err != nil {
+		slog.Error("Error fetching todos", "error", err)
+		return []m.Todo{}, false, err
+	}
+
+	defer rows.Close()
+
+	data := []m.Todo{}
+
+	for rows.Next() {
+		var todo m.Todo
+
+		err = rows.Scan(&todo.ID, &todo.UUID, &todo.Title, &todo.Description, &todo.Status, &todo.Completed, &todo.UserId, &todo.CreatedAt, &todo.UpdatedAt)
+
+		if err != nil {
+			return []m.Todo{}, false, err
+		}
+
+		data = append(data, todo)
+	}
+
+	// Verificar se tem próxima página
+	hasNext := len(data) == actualLimit
+
+	// Se tem mais dados que o limit, remover o item extra
+	if hasNext {
+		data = data[:limit]
+	}
+
+	return data, hasNext, nil
 }
 
 func (r *TodoRepository) GetAll(userId int) ([]m.Todo, error) {

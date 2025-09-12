@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	. "todoapp/internal/repositories"
@@ -30,7 +31,15 @@ func (t *TodoHandler) GetAllTodos(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	userId := r.Context().Value("x-user-id").(int)
-	data, err := t.Service.GetAllTodos(userId)
+	cursor := r.URL.Query().Get("cursor")
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+
+	// Default limit if not specified
+	if limit <= 0 {
+		limit = 10
+	}
+
+	data, err := t.Service.GetTodosWithPagination(userId, limit, cursor)
 
 	if err != nil {
 		slog.Error("Error fetching todos", "error", err)
@@ -44,7 +53,7 @@ func (t *TodoHandler) GetAllTodos(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	json.NewEncoder(w).Encode(GetAllTodosResponse{Data: data, Size: len(data)})
+	json.NewEncoder(w).Encode(data)
 }
 
 func (t *TodoHandler) CreateTodo(w http.ResponseWriter, r *http.Request) {

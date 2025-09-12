@@ -9,6 +9,7 @@ import (
 
 	m "todoapp/internal/models"
 	ru "todoapp/internal/repositories"
+	c "todoapp/pkg/cursor"
 
 	"github.com/google/uuid"
 )
@@ -41,6 +42,65 @@ func (s *TodoService) StatusOrFallback(todo m.Todo, fallback ...string) string {
 	}
 
 	return status
+}
+
+func (s *TodoService) GetTodosWithPagination(userId int, limit int, cursor string) (*c.CursorResponse, error) {
+	rows, hasNext, err := s.repo.GetAllWithCursor(userId, limit, cursor)
+
+	data := make([]ru.TodoResponse, 0)
+
+	if err != nil {
+		dataBytes, _ := json.Marshal(data)
+		response := c.CursorResponse{
+			Size: 0,
+			Data: dataBytes,
+			Pagination: struct {
+				HasNext    bool   `json:"has_next"`
+				NextCursor string `json:"next_cursor"`
+			}{
+				HasNext:    false,
+				NextCursor: "",
+			},
+		}
+
+		return &response, err
+	}
+
+	for _, todo := range rows {
+		item := ru.TodoResponse{
+			UUID:        todo.UUID,
+			Title:       todo.Title,
+			Description: todo.Description,
+			Status:      s.StatusOrFallback(todo),
+			Completed:   todo.Completed,
+			CreatedAt:   todo.CreatedAt,
+			UpdatedAt:   todo.UpdatedAt,
+		}
+
+		data = append(data, item)
+	}
+
+	var nextCursor string
+
+	if hasNext && len(rows) > 0 {
+		nextCursor = c.EncodeCursor("", rows[len(rows)-1].ID)
+	}
+
+	dataBytes, _ := json.Marshal(data)
+
+	response := c.CursorResponse{
+		Size: len(data),
+		Data: dataBytes,
+		Pagination: struct {
+			HasNext    bool   `json:"has_next"`
+			NextCursor string `json:"next_cursor"`
+		}{
+			HasNext:    hasNext,
+			NextCursor: nextCursor,
+		},
+	}
+
+	return &response, nil
 }
 
 func (s *TodoService) GetAllTodos(userId int) ([]ru.TodoResponse, error) {
