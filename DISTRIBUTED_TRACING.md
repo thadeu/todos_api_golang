@@ -263,14 +263,6 @@ Trace ID: 1234567890abcdef
 │   └── Span 3: middleware processing (4ms)
 ```
 
-## Próximos Passos
-
-1. **Instrumentação de HTTP Clients**: Para chamadas a APIs externas
-2. **Baggage**: Adicionar informações de negócio que se propagam
-3. **Custom Samplers**: Sampling baseado em regras de negócio
-4. **Trace Analytics**: Dashboards específicos para análise de traces
-5. **Alerting**: Alertas baseados em latência de traces
-
 ## Configuração
 
 ### Variáveis de Ambiente
@@ -297,20 +289,3 @@ telemetry, err := InitTelemetry(TelemetryConfig{
     OTLPEndpoint:   "localhost:4317",
 })
 ```
-
-## Monitoramento
-
-### Dashboards Recomendados
-
-1. **Trace Overview**: Visão geral de todos os traces
-2. **Service Performance**: Latência por serviço/operação
-3. **Error Analysis**: Análise de erros por trace
-4. **User Journey**: Rastreamento de jornada do usuário
-5. **Database Performance**: Performance de queries
-
-### Alertas Sugeridos
-
-1. **High Latency**: Traces com latência > 1s
-2. **Error Rate**: Taxa de erro > 5%
-3. **Slow Queries**: Queries de banco > 500ms
-4. **Service Down**: Serviço não respondendo

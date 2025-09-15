@@ -13,10 +13,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// ResponseCacheConfig configuração para cache de resposta
+// ResponseCacheConfig configuration for response cache
 type ResponseCacheConfig struct {
-	TTL     time.Duration // Tempo de vida do cache
-	Enabled bool          // Se o cache está habilitado
+	TTL     time.Duration
+	Enabled bool
 }
 
 // ResponseCache middleware para cache de respostas
@@ -35,12 +35,10 @@ type CachedResponse struct {
 	Timestamp  time.Time           `json:"timestamp"`
 }
 
-// NewResponseCache cria uma nova instância do cache de resposta
+// NewResponseCache creates a new response cache instance
 func NewResponseCache(logger *zap.Logger, metrics *AppMetrics) *ResponseCache {
-	// Cache com limpeza automática a cada 5 minutos
 	c := cache.New(5*time.Minute, 10*time.Minute)
 
-	// Configurações padrão por endpoint
 	configs := map[string]ResponseCacheConfig{
 		"/todos": {
 			TTL:     3 * time.Second,
@@ -73,26 +71,22 @@ func (rc *ResponseCache) CacheMiddleware() gin.HandlerFunc {
 			path = c.Request.URL.Path
 		}
 
-		// Buscar configuração para o endpoint
 		config, exists := rc.config[path]
 		if !exists {
 			config = rc.config["default"]
 		}
 
-		// Se cache não está habilitado para este endpoint
 		if !config.Enabled {
 			c.Next()
 			return
 		}
 
-		// Gerar chave única para o cache
 		cacheKey := rc.generateCacheKey(c, path)
 
 		// Tentar buscar do cache
 		if cachedResp, found := rc.cache.Get(cacheKey); found {
 			cached := cachedResp.(CachedResponse)
 
-			// Verificar se o cache ainda é válido
 			if time.Since(cached.Timestamp) < config.TTL {
 				// Cache hit - criar span para indicar que veio do cache
 				_, span := CreateChildSpan(c.Request.Context(), "cache.response.hit", []attribute.KeyValue{
@@ -110,7 +104,6 @@ func (rc *ResponseCache) CacheMiddleware() gin.HandlerFunc {
 					attribute.String("cache.ttl", config.TTL.String()),
 				)
 
-				// Registrar métrica de cache hit
 				if rc.metrics != nil {
 					rc.metrics.RecordCacheHit(c.Request.Context(), path)
 				}
@@ -140,7 +133,6 @@ func (rc *ResponseCache) CacheMiddleware() gin.HandlerFunc {
 			}
 		}
 
-		// Cache miss - criar span para indicar que não estava em cache
 		ctx, span := CreateChildSpan(c.Request.Context(), "cache.response.miss", []attribute.KeyValue{
 			attribute.String("cache.key", cacheKey),
 			attribute.String("cache.path", path),
@@ -148,7 +140,6 @@ func (rc *ResponseCache) CacheMiddleware() gin.HandlerFunc {
 		})
 		defer span.End()
 
-		// Registrar métrica de cache miss
 		if rc.metrics != nil {
 			rc.metrics.RecordCacheMiss(c.Request.Context(), path)
 		}
@@ -167,9 +158,7 @@ func (rc *ResponseCache) CacheMiddleware() gin.HandlerFunc {
 		// Processar request
 		c.Next()
 
-		// Só cachear se a resposta foi bem-sucedida
 		if writer.statusCode >= 200 && writer.statusCode < 300 {
-			// Criar span para indicar que está armazenando no cache
 			_, cacheSpan := CreateChildSpan(ctx, "cache.response.store", []attribute.KeyValue{
 				attribute.String("cache.key", cacheKey),
 				attribute.String("cache.path", path),
@@ -196,7 +185,7 @@ func (rc *ResponseCache) CacheMiddleware() gin.HandlerFunc {
 	}
 }
 
-// generateCacheKey gera chave única para o cache
+// generateCacheKey generates unique cache key
 func (rc *ResponseCache) generateCacheKey(c *gin.Context, path string) string {
 	// Incluir path, query parameters e user ID se autenticado
 	keyParts := []string{path}
@@ -210,7 +199,6 @@ func (rc *ResponseCache) generateCacheKey(c *gin.Context, path string) string {
 	if userID, exists := c.Get("x-user-id"); exists {
 		keyParts = append(keyParts, fmt.Sprintf("user_%v", userID))
 	} else {
-		// Fallback para IP se não autenticado
 		keyParts = append(keyParts, fmt.Sprintf("ip_%s", GetClientIP(c)))
 	}
 
@@ -221,9 +209,8 @@ func (rc *ResponseCache) generateCacheKey(c *gin.Context, path string) string {
 	return fmt.Sprintf("cache:%s:%x", path, hash)
 }
 
-// InvalidateCache invalida cache para um usuário específico
+// InvalidateCache invalidates cache for specific user
 func (rc *ResponseCache) InvalidateCache(userID int, path string) {
-	// Buscar todas as chaves que correspondem ao usuário e path
 	keys := rc.cache.Items()
 
 	for key := range keys {
@@ -243,12 +230,12 @@ func (rc *ResponseCache) InvalidateAllCache() {
 	rc.logger.Info("All cache invalidated")
 }
 
-// SetConfig permite configurar cache para endpoints específicos
+// SetConfig allows configuring cache for specific endpoints
 func (rc *ResponseCache) SetConfig(path string, config ResponseCacheConfig) {
 	rc.config[path] = config
 }
 
-// GetStats retorna estatísticas do cache
+// GetStats returns cache statistics
 func (rc *ResponseCache) GetStats() map[string]interface{} {
 	stats := make(map[string]interface{})
 

@@ -217,38 +217,3 @@ As métricas aparecem automaticamente nos dashboards do Grafana:
   "span_id": "..."
 }
 ```
-
-## Performance
-
-### Cache Local
-
-**Rate Limiting:**
-- **Limpeza Automática**: A cada 5 minutos
-- **Expiração**: 10 minutos para entradas não utilizadas
-- **Memória**: Baixo uso de memória, apenas contadores
-- **Latência**: Impacto mínimo (< 1ms por request)
-
-**Response Cache:**
-- **TTL Configurável**: Por endpoint (padrão: 30s para /todos)
-- **Limpeza Automática**: A cada 5 minutos
-- **Memória**: Armazena respostas completas (JSON)
-- **Latência**: Cache hit < 1ms, cache miss = tempo normal da API
-
-### Escalabilidade
-
-Para ambientes com múltiplas instâncias, considere:
-
-1. **Redis**: Substituir go-cache por Redis para rate limiting e cache distribuídos
-2. **Load Balancer**: Configurar rate limiting no nível do load balancer
-3. **CDN**: Usar CDN com rate limiting e cache (CloudFlare, AWS CloudFront)
-4. **Cache Invalidation**: Implementar invalidação de cache em operações de escrita
-
-## Próximos Passos
-
-1. **Redis Integration**: Implementar rate limiting e cache distribuídos
-2. **Dynamic Configuration**: Permitir mudança de limites sem restart
-3. **Cache Invalidation**: Invalidação automática em operações de escrita
-4. **Whitelist/Blacklist**: Listas de IPs permitidos/bloqueados
-5. **Burst Allowance**: Permitir picos temporários de tráfego
-6. **Rate Limit by User Tier**: Diferentes limites por tipo de usuário
-7. **Cache Warming**: Pré-carregar cache com dados frequentes

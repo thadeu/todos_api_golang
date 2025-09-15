@@ -12,11 +12,11 @@ import (
 	"go.uber.org/zap"
 )
 
-// RateLimitEndpointConfig configuração específica para rate limiting por endpoint
+// RateLimitEndpointConfig configuration for rate limiting per endpoint
 type RateLimitEndpointConfig struct {
-	Requests int                       // Número de requests permitidos
-	Window   time.Duration             // Janela de tempo
-	KeyFunc  func(*gin.Context) string // Função para gerar chave única
+	Requests int
+	Window   time.Duration
+	KeyFunc  func(*gin.Context) string
 }
 
 // RateLimiter estrutura para gerenciar rate limiting
@@ -33,12 +33,10 @@ type RateLimitEntry struct {
 	ResetTime time.Time
 }
 
-// NewRateLimiter cria uma nova instância do rate limiter
+// NewRateLimiter creates a new rate limiter instance
 func NewRateLimiter(logger *zap.Logger, metrics *AppMetrics) *RateLimiter {
-	// Cache com limpeza automática a cada 5 minutos
 	c := cache.New(5*time.Minute, 10*time.Minute)
 
-	// Configurações padrão por endpoint
 	configs := map[string]RateLimitEndpointConfig{
 		"/signup": {
 			Requests: 100,
@@ -78,14 +76,11 @@ func (rl *RateLimiter) RateLimitMiddleware() gin.HandlerFunc {
 			path = c.Request.URL.Path
 		}
 
-		// Buscar configuração para o endpoint
 		config, exists := rl.config[path]
 		if !exists {
-			// Usar configuração padrão
 			config = rl.config["default"]
 		}
 
-		// Gerar chave única para o rate limiting
 		key := rl.generateKey(c, path, config.KeyFunc)
 
 		// Verificar rate limit
@@ -99,9 +94,7 @@ func (rl *RateLimiter) RateLimitMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Determinar tipo de chave para métricas
 		keyType := "ip"
-		// Verificar se a chave contém "user_" para determinar o tipo
 		if strings.Contains(key, "user_") {
 			keyType = "user"
 		}
@@ -112,7 +105,6 @@ func (rl *RateLimiter) RateLimitMiddleware() gin.HandlerFunc {
 		c.Header("X-RateLimit-Reset", strconv.FormatInt(resetTime.Unix(), 10))
 
 		if !allowed {
-			// Registrar métrica de rate limit hit
 			if rl.metrics != nil {
 				rl.metrics.RecordRateLimitHit(c.Request.Context(), path, keyType)
 			}
@@ -132,7 +124,6 @@ func (rl *RateLimiter) RateLimitMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Registrar métrica de request permitido
 		if rl.metrics != nil {
 			rl.metrics.RecordRateLimitAllowed(c.Request.Context(), path, keyType)
 		}
@@ -141,7 +132,7 @@ func (rl *RateLimiter) RateLimitMiddleware() gin.HandlerFunc {
 	}
 }
 
-// checkRateLimit verifica se o request está dentro do limite
+// checkRateLimit checks if request is within limit
 func (rl *RateLimiter) checkRateLimit(key string, config RateLimitEndpointConfig) (bool, int, time.Time, error) {
 	now := time.Now()
 
@@ -149,7 +140,6 @@ func (rl *RateLimiter) checkRateLimit(key string, config RateLimitEndpointConfig
 	if entry, found := rl.cache.Get(key); found {
 		rateLimitEntry := entry.(RateLimitEntry)
 
-		// Se ainda está na janela de tempo
 		if now.Before(rateLimitEntry.ResetTime) {
 			if rateLimitEntry.Count >= config.Requests {
 				return false, 0, rateLimitEntry.ResetTime, nil
@@ -175,28 +165,27 @@ func (rl *RateLimiter) checkRateLimit(key string, config RateLimitEndpointConfig
 	return true, config.Requests - 1, resetTime, nil
 }
 
-// generateKey gera chave única para rate limiting
+// generateKey generates unique key for rate limiting
 func (rl *RateLimiter) generateKey(c *gin.Context, path string, keyFunc func(*gin.Context) string) string {
 	identifier := keyFunc(c)
 	return fmt.Sprintf("rate_limit:%s:%s", path, identifier)
 }
 
-// getUserID extrai ID do usuário autenticado
+// getUserID extracts authenticated user ID
 func getUserID(c *gin.Context) string {
 	if userID, exists := c.Get("x-user-id"); exists {
 		return fmt.Sprintf("user_%v", userID)
 	}
 
-	// Fallback para IP se não estiver autenticado
 	return GetClientIP(c)
 }
 
-// SetConfig permite configurar rate limits para endpoints específicos
+// SetConfig allows configuring rate limits for specific endpoints
 func (rl *RateLimiter) SetConfig(path string, config RateLimitEndpointConfig) {
 	rl.config[path] = config
 }
 
-// GetStats retorna estatísticas do rate limiter
+// GetStats returns rate limiter statistics
 func (rl *RateLimiter) GetStats() map[string]interface{} {
 	stats := make(map[string]interface{})
 

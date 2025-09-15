@@ -6,7 +6,7 @@ type CursorConfig struct {
 	CursorSecretKey string
 }
 
-// AppConfig configurações gerais da aplicação
+// AppConfig general application configurations
 type AppConfig struct {
 	// Rate Limiting
 	RateLimitEnabled bool
@@ -23,13 +23,13 @@ type AppConfig struct {
 	Environment string
 }
 
-// RateLimitConfig configuração para rate limiting
+// RateLimitConfig configuration for rate limiting
 type RateLimitConfig struct {
-	Requests int           // Número de requests permitidos
+	Requests int
 	Window   time.Duration // Janela de tempo
 }
 
-// GetDefaultConfig retorna configuração padrão
+// GetDefaultConfig returns default configuration
 func GetDefaultConfig() *AppConfig {
 	return &AppConfig{
 		RateLimitEnabled: true,
