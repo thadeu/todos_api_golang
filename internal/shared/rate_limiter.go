@@ -41,24 +41,24 @@ func NewRateLimiter(logger *zap.Logger, metrics *AppMetrics) *RateLimiter {
 	// Configurações padrão por endpoint
 	configs := map[string]RateLimitEndpointConfig{
 		"/signup": {
-			Requests: 5, // 5 tentativas de signup por minuto
-			Window:   time.Minute,
-			KeyFunc:  getClientIP,
+			Requests: 100,
+			Window:   time.Second,
+			KeyFunc:  GetClientIP,
 		},
 		"/auth": {
-			Requests: 10, // 10 tentativas de login por minuto
-			Window:   time.Minute,
-			KeyFunc:  getClientIP,
+			Requests: 20,
+			Window:   time.Second,
+			KeyFunc:  GetClientIP,
 		},
 		"/todos": {
-			Requests: 100, // 100 requests por minuto para todos
-			Window:   time.Minute,
+			Requests: 100,
+			Window:   time.Second,
 			KeyFunc:  getUserID,
 		},
 		"default": {
-			Requests: 60, // 60 requests por minuto para outros endpoints
+			Requests: 500,
 			Window:   time.Minute,
-			KeyFunc:  getClientIP,
+			KeyFunc:  GetClientIP,
 		},
 	}
 
@@ -181,28 +181,6 @@ func (rl *RateLimiter) generateKey(c *gin.Context, path string, keyFunc func(*gi
 	return fmt.Sprintf("rate_limit:%s:%s", path, identifier)
 }
 
-// getClientIP extrai IP do cliente
-func getClientIP(c *gin.Context) string {
-	// Verificar headers de proxy primeiro
-	if ip := c.GetHeader("X-Forwarded-For"); ip != "" {
-		// Pegar o primeiro IP da lista
-		ips := strings.Split(ip, ",")
-		return strings.TrimSpace(ips[0])
-	}
-
-	if ip := c.GetHeader("X-Real-IP"); ip != "" {
-		return ip
-	}
-
-	// Fallback para RemoteAddr
-	ip := c.ClientIP()
-	if ip == "" {
-		return "unknown"
-	}
-
-	return ip
-}
-
 // getUserID extrai ID do usuário autenticado
 func getUserID(c *gin.Context) string {
 	if userID, exists := c.Get("x-user-id"); exists {
@@ -210,7 +188,7 @@ func getUserID(c *gin.Context) string {
 	}
 
 	// Fallback para IP se não estiver autenticado
-	return getClientIP(c)
+	return GetClientIP(c)
 }
 
 // SetConfig permite configurar rate limits para endpoints específicos

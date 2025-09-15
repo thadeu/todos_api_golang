@@ -34,7 +34,12 @@ func StartServerWithConfig(metrics *AppMetrics, logger *LokiLogger, config *AppC
 	}, metrics, logger, config)
 
 	port := GetServerPort()
-	slog.Info("Server starting", "port", port, "environment", config.Environment, "rate_limit_enabled", config.RateLimitEnabled, "https_enforced", config.EnforceHTTPS)
+	slog.Info("Server starting",
+		"port", port,
+		"environment", config.Environment,
+		"rate_limit_enabled", config.RateLimitEnabled,
+		"cache_enabled", config.CacheEnabled,
+		"https_enforced", config.EnforceHTTPS)
 
 	srv := &http.Server{
 		Addr:         ":" + port,

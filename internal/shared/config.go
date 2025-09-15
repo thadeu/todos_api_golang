@@ -12,6 +12,10 @@ type AppConfig struct {
 	RateLimitEnabled bool
 	RateLimitConfigs map[string]RateLimitConfig
 
+	// Response Cache
+	CacheEnabled bool
+	CacheConfigs map[string]ResponseCacheConfig
+
 	// HTTPS Enforcement
 	EnforceHTTPS bool
 
@@ -43,7 +47,14 @@ func GetDefaultConfig() *AppConfig {
 				Window:   time.Minute,
 			},
 		},
-		EnforceHTTPS: false, // Será definido baseado no ambiente
+		CacheEnabled: true,
+		CacheConfigs: map[string]ResponseCacheConfig{
+			"/todos": {
+				TTL:     3 * time.Second,
+				Enabled: true,
+			},
+		},
+		EnforceHTTPS: false,
 		Environment:  "development",
 	}
 }

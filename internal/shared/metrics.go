@@ -20,6 +20,8 @@ type AppMetrics struct {
 	databaseOperations *prometheus.CounterVec
 	rateLimitHits      *prometheus.CounterVec
 	rateLimitAllowed   *prometheus.CounterVec
+	cacheHits          *prometheus.CounterVec
+	cacheMisses        *prometheus.CounterVec
 }
 
 func NewAppMetrics(registry prometheus.Registerer) *AppMetrics {
@@ -98,6 +100,20 @@ func NewAppMetrics(registry prometheus.Registerer) *AppMetrics {
 			},
 			[]string{"path", "key_type"},
 		),
+		cacheHits: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "cache_hits_total",
+				Help: "Total number of cache hits",
+			},
+			[]string{"path"},
+		),
+		cacheMisses: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "cache_misses_total",
+				Help: "Total number of cache misses",
+			},
+			[]string{"path"},
+		),
 	}
 
 	registry.MustRegister(
@@ -112,6 +128,8 @@ func NewAppMetrics(registry prometheus.Registerer) *AppMetrics {
 		metrics.databaseOperations,
 		metrics.rateLimitHits,
 		metrics.rateLimitAllowed,
+		metrics.cacheHits,
+		metrics.cacheMisses,
 	)
 
 	return metrics
@@ -148,6 +166,14 @@ func (m *AppMetrics) RecordRateLimitHit(ctx context.Context, path, keyType strin
 
 func (m *AppMetrics) RecordRateLimitAllowed(ctx context.Context, path, keyType string) {
 	m.rateLimitAllowed.WithLabelValues(path, keyType).Inc()
+}
+
+func (m *AppMetrics) RecordCacheHit(ctx context.Context, path string) {
+	m.cacheHits.WithLabelValues(path).Inc()
+}
+
+func (m *AppMetrics) RecordCacheMiss(ctx context.Context, path string) {
+	m.cacheMisses.WithLabelValues(path).Inc()
 }
 
 func (m *AppMetrics) StartSystemMetrics(ctx context.Context) {

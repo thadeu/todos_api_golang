@@ -1,0 +1,248 @@
+package shared
+
+import (
+	"bytes"
+	"crypto/md5"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/patrickmn/go-cache"
+	"go.uber.org/zap"
+)
+
+// ResponseCacheConfig configuração para cache de resposta
+type ResponseCacheConfig struct {
+	TTL     time.Duration // Tempo de vida do cache
+	Enabled bool          // Se o cache está habilitado
+}
+
+// ResponseCache middleware para cache de respostas
+type ResponseCache struct {
+	cache   *cache.Cache
+	config  map[string]ResponseCacheConfig
+	logger  *zap.Logger
+	metrics *AppMetrics
+}
+
+// CachedResponse estrutura para armazenar resposta em cache
+type CachedResponse struct {
+	StatusCode int                 `json:"status_code"`
+	Headers    map[string][]string `json:"headers"`
+	Body       []byte              `json:"body"`
+	Timestamp  time.Time           `json:"timestamp"`
+}
+
+// NewResponseCache cria uma nova instância do cache de resposta
+func NewResponseCache(logger *zap.Logger, metrics *AppMetrics) *ResponseCache {
+	// Cache com limpeza automática a cada 5 minutos
+	c := cache.New(5*time.Minute, 10*time.Minute)
+
+	// Configurações padrão por endpoint
+	configs := map[string]ResponseCacheConfig{
+		"/todos": {
+			TTL:     3 * time.Second,
+			Enabled: true,
+		},
+		"default": {
+			TTL:     1 * time.Second,
+			Enabled: true,
+		},
+	}
+
+	return &ResponseCache{
+		cache:   c,
+		config:  configs,
+		logger:  logger,
+		metrics: metrics,
+	}
+}
+
+// CacheMiddleware middleware para cache de respostas
+func (rc *ResponseCache) CacheMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Method != "GET" {
+			c.Next()
+			return
+		}
+
+		path := c.FullPath()
+		if path == "" {
+			path = c.Request.URL.Path
+		}
+
+		// Buscar configuração para o endpoint
+		config, exists := rc.config[path]
+		if !exists {
+			config = rc.config["default"]
+		}
+
+		// Se cache não está habilitado para este endpoint
+		if !config.Enabled {
+			c.Next()
+			return
+		}
+
+		// Gerar chave única para o cache
+		cacheKey := rc.generateCacheKey(c, path)
+
+		// Tentar buscar do cache
+		if cachedResp, found := rc.cache.Get(cacheKey); found {
+			cached := cachedResp.(CachedResponse)
+
+			// Verificar se o cache ainda é válido
+			if time.Since(cached.Timestamp) < config.TTL {
+				// Cache hit - retornar resposta em cache
+				if rc.metrics != nil {
+					rc.metrics.RecordCacheHit(c.Request.Context(), path)
+				}
+
+				rc.logger.Debug("Cache hit",
+					zap.String("path", path),
+					zap.String("cache_key", cacheKey),
+					zap.Duration("age", time.Since(cached.Timestamp)))
+
+				// Restaurar headers
+				for key, values := range cached.Headers {
+					for _, value := range values {
+						c.Header(key, value)
+					}
+				}
+
+				// Adicionar header indicando que veio do cache
+				c.Header("X-Cache", "HIT")
+				c.Header("X-Cache-Age", fmt.Sprintf("%.0f", time.Since(cached.Timestamp).Seconds()))
+
+				c.Data(cached.StatusCode, "application/json", cached.Body)
+				c.Abort()
+				return
+			} else {
+				// Cache expirado - remover
+				rc.cache.Delete(cacheKey)
+			}
+		}
+
+		// Cache miss - continuar processamento
+		if rc.metrics != nil {
+			rc.metrics.RecordCacheMiss(c.Request.Context(), path)
+		}
+
+		rc.logger.Debug("Cache miss",
+			zap.String("path", path),
+			zap.String("cache_key", cacheKey))
+
+		// Interceptar a resposta
+		writer := &responseWriter{
+			ResponseWriter: c.Writer,
+			body:           &bytes.Buffer{},
+		}
+		c.Writer = writer
+
+		// Processar request
+		c.Next()
+
+		// Só cachear se a resposta foi bem-sucedida
+		if writer.statusCode >= 200 && writer.statusCode < 300 {
+			// Armazenar no cache
+			cachedResp := CachedResponse{
+				StatusCode: writer.statusCode,
+				Headers:    writer.Header(),
+				Body:       writer.body.Bytes(),
+				Timestamp:  time.Now(),
+			}
+
+			rc.cache.Set(cacheKey, cachedResp, config.TTL)
+
+			// Adicionar header indicando que foi cacheado
+			c.Header("X-Cache", "MISS")
+		}
+	}
+}
+
+// generateCacheKey gera chave única para o cache
+func (rc *ResponseCache) generateCacheKey(c *gin.Context, path string) string {
+	// Incluir path, query parameters e user ID se autenticado
+	keyParts := []string{path}
+
+	// Adicionar query parameters
+	if c.Request.URL.RawQuery != "" {
+		keyParts = append(keyParts, c.Request.URL.RawQuery)
+	}
+
+	// Adicionar user ID se autenticado
+	if userID, exists := c.Get("x-user-id"); exists {
+		keyParts = append(keyParts, fmt.Sprintf("user_%v", userID))
+	} else {
+		// Fallback para IP se não autenticado
+		keyParts = append(keyParts, fmt.Sprintf("ip_%s", GetClientIP(c)))
+	}
+
+	// Criar hash da chave
+	keyString := strings.Join(keyParts, "|")
+	hash := md5.Sum([]byte(keyString))
+
+	return fmt.Sprintf("cache:%s:%x", path, hash)
+}
+
+// InvalidateCache invalida cache para um usuário específico
+func (rc *ResponseCache) InvalidateCache(userID int, path string) {
+	// Buscar todas as chaves que correspondem ao usuário e path
+	keys := rc.cache.Items()
+
+	for key := range keys {
+		if strings.Contains(key, fmt.Sprintf("user_%d", userID)) && strings.Contains(key, path) {
+			rc.cache.Delete(key)
+			rc.logger.Debug("Cache invalidated",
+				zap.String("key", key),
+				zap.Int("user_id", userID),
+				zap.String("path", path))
+		}
+	}
+}
+
+// InvalidateAllCache invalida todo o cache
+func (rc *ResponseCache) InvalidateAllCache() {
+	rc.cache.Flush()
+	rc.logger.Info("All cache invalidated")
+}
+
+// SetConfig permite configurar cache para endpoints específicos
+func (rc *ResponseCache) SetConfig(path string, config ResponseCacheConfig) {
+	rc.config[path] = config
+}
+
+// GetStats retorna estatísticas do cache
+func (rc *ResponseCache) GetStats() map[string]interface{} {
+	stats := make(map[string]interface{})
+
+	// Contar entradas ativas no cache
+	activeEntries := rc.cache.ItemCount()
+
+	stats["active_entries"] = activeEntries
+	stats["configs"] = len(rc.config)
+
+	return stats
+}
+
+// responseWriter wrapper para interceptar a resposta
+type responseWriter struct {
+	gin.ResponseWriter
+	body       *bytes.Buffer
+	statusCode int
+}
+
+func (w *responseWriter) Write(data []byte) (int, error) {
+	w.body.Write(data)
+	return w.ResponseWriter.Write(data)
+}
+
+func (w *responseWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (w *responseWriter) WriteString(s string) (int, error) {
+	w.body.WriteString(s)
+	return w.ResponseWriter.WriteString(s)
+}

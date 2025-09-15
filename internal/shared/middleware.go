@@ -53,6 +53,16 @@ func SetupGinMiddlewareWithConfig(router *gin.Engine, serviceName string, metric
 		router.Use(rateLimiter.RateLimitMiddleware())
 	}
 
+	// Response Cache middleware (após rate limiting, antes de autenticação)
+	if config.CacheEnabled {
+		responseCache := NewResponseCache(logger.Logger.Logger, metrics)
+		// Aplicar configurações específicas
+		for path, cacheConfig := range config.CacheConfigs {
+			responseCache.SetConfig(path, cacheConfig)
+		}
+		router.Use(responseCache.CacheMiddleware())
+	}
+
 	// Custom metrics middleware
 	router.Use(MetricsMiddleware(metrics))
 }
