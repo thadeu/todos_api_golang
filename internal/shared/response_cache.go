@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/patrickmn/go-cache"
+	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 )
 
@@ -93,7 +94,23 @@ func (rc *ResponseCache) CacheMiddleware() gin.HandlerFunc {
 
 			// Verificar se o cache ainda é válido
 			if time.Since(cached.Timestamp) < config.TTL {
-				// Cache hit - retornar resposta em cache
+				// Cache hit - criar span para indicar que veio do cache
+				_, span := CreateChildSpan(c.Request.Context(), "cache.response.hit", []attribute.KeyValue{
+					attribute.String("cache.key", cacheKey),
+					attribute.String("cache.path", path),
+					attribute.String("cache.age", time.Since(cached.Timestamp).String()),
+					attribute.String("cache.source", "memory"),
+				})
+				defer span.End()
+
+				// Adicionar atributos de sucesso do cache
+				span.SetAttributes(
+					attribute.Int("cache.status_code", cached.StatusCode),
+					attribute.Int("cache.body_size", len(cached.Body)),
+					attribute.String("cache.ttl", config.TTL.String()),
+				)
+
+				// Registrar métrica de cache hit
 				if rc.metrics != nil {
 					rc.metrics.RecordCacheHit(c.Request.Context(), path)
 				}
@@ -123,7 +140,15 @@ func (rc *ResponseCache) CacheMiddleware() gin.HandlerFunc {
 			}
 		}
 
-		// Cache miss - continuar processamento
+		// Cache miss - criar span para indicar que não estava em cache
+		ctx, span := CreateChildSpan(c.Request.Context(), "cache.response.miss", []attribute.KeyValue{
+			attribute.String("cache.key", cacheKey),
+			attribute.String("cache.path", path),
+			attribute.String("cache.source", "memory"),
+		})
+		defer span.End()
+
+		// Registrar métrica de cache miss
 		if rc.metrics != nil {
 			rc.metrics.RecordCacheMiss(c.Request.Context(), path)
 		}
@@ -144,6 +169,17 @@ func (rc *ResponseCache) CacheMiddleware() gin.HandlerFunc {
 
 		// Só cachear se a resposta foi bem-sucedida
 		if writer.statusCode >= 200 && writer.statusCode < 300 {
+			// Criar span para indicar que está armazenando no cache
+			_, cacheSpan := CreateChildSpan(ctx, "cache.response.store", []attribute.KeyValue{
+				attribute.String("cache.key", cacheKey),
+				attribute.String("cache.path", path),
+				attribute.String("cache.source", "memory"),
+				attribute.Int("cache.status_code", writer.statusCode),
+				attribute.Int("cache.body_size", len(writer.body.Bytes())),
+				attribute.String("cache.ttl", config.TTL.String()),
+			})
+			cacheSpan.End()
+
 			// Armazenar no cache
 			cachedResp := CachedResponse{
 				StatusCode: writer.statusCode,

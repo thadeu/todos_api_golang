@@ -10,9 +10,11 @@ import (
 	"time"
 
 	m "todoapp/internal/models"
+	. "todoapp/internal/shared"
 	c "todoapp/pkg/cursor"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type TodoStatus int
@@ -118,6 +120,16 @@ func (r *TodoRepository) Create(ctx context.Context, todo m.Todo) (m.Todo, error
 }
 
 func (r *TodoRepository) GetAllWithCursor(ctx context.Context, userId int, limit int, cursor string) ([]m.Todo, bool, error) {
+	// Criar span para operação de banco de dados
+	ctx, span := CreateChildSpan(ctx, "db.todo.GetAllWithCursor", []attribute.KeyValue{
+		attribute.String("db.table", "todos"),
+		attribute.String("db.operation", "SELECT"),
+		attribute.Int("user.id", userId),
+		attribute.Int("todo.limit", limit),
+		attribute.String("todo.cursor", cursor),
+	})
+	defer span.End()
+
 	actualLimit := limit + 1
 
 	var query string
@@ -131,6 +143,7 @@ func (r *TodoRepository) GetAllWithCursor(ctx context.Context, userId int, limit
 		datetimeStr, id, err := c.DecodeCursor(cursor)
 
 		if err != nil {
+			AddSpanError(span, err)
 			slog.Error("Error decoding cursor", "error", err)
 			return []m.Todo{}, false, err
 		}
@@ -187,6 +200,12 @@ func (r *TodoRepository) GetAllWithCursor(ctx context.Context, userId int, limit
 	if hasNext {
 		data = data[:limit]
 	}
+
+	// Adicionar atributos de sucesso
+	span.SetAttributes(
+		attribute.Int("db.rows_returned", len(data)),
+		attribute.Bool("db.has_next", hasNext),
+	)
 
 	return data, hasNext, nil
 }

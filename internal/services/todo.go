@@ -10,11 +10,12 @@ import (
 
 	m "todoapp/internal/models"
 	ru "todoapp/internal/repositories"
-	"todoapp/internal/shared"
+	. "todoapp/internal/shared"
 	c "todoapp/pkg/cursor"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type TodoService struct {
@@ -48,11 +49,20 @@ func (s *TodoService) StatusOrFallback(todo m.Todo, fallback ...string) string {
 }
 
 func (s *TodoService) GetTodosWithPagination(ctx context.Context, userId int, limit int, cursor string) (*c.CursorResponse, error) {
+	// Criar span para operação de serviço
+	ctx, span := CreateChildSpan(ctx, "service.todo.GetTodosWithPagination", []attribute.KeyValue{
+		attribute.Int("user.id", userId),
+		attribute.Int("todo.limit", limit),
+		attribute.String("todo.cursor", cursor),
+	})
+	defer span.End()
+
 	rows, hasNext, err := s.repo.GetAllWithCursor(ctx, userId, limit, cursor)
 
 	data := make([]ru.TodoResponse, 0)
 
 	if err != nil {
+		AddSpanError(span, err)
 		dataBytes, _ := json.Marshal(data)
 		response := c.CursorResponse{
 			Size: 0,
@@ -104,6 +114,12 @@ func (s *TodoService) GetTodosWithPagination(ctx context.Context, userId int, li
 		},
 	}
 
+	// Adicionar atributos de sucesso
+	span.SetAttributes(
+		attribute.Int("todo.count", len(data)),
+		attribute.Bool("todo.has_next", hasNext),
+	)
+
 	return &response, nil
 }
 
@@ -142,7 +158,7 @@ func (s *TodoService) CreateTodo(ctx context.Context, c *gin.Context, userId int
 		return m.Todo{}, err
 	}
 
-	if err := shared.Validator.Struct(params); err != nil {
+	if err := Validator.Struct(params); err != nil {
 		slog.Error("Falha na validação dos parâmetros do Todo", "error", err)
 		return m.Todo{}, err
 	}
@@ -170,8 +186,8 @@ func (s *TodoService) CreateTodo(ctx context.Context, c *gin.Context, userId int
 		DeletedAt:   nil,
 	}
 
-	if err := shared.Validator.Struct(newTodo); err != nil {
-		errors := shared.FormatValidationErrors(err)
+	if err := Validator.Struct(newTodo); err != nil {
+		errors := FormatValidationErrors(err)
 		slog.Error("Falha na validação do Todo", "errors", errors)
 
 		return m.Todo{}, fmt.Errorf("%v", errors[len(errors)-1].Message)
@@ -196,7 +212,7 @@ func (s *TodoService) UpdateTodoByUUID(ctx context.Context, c *gin.Context, user
 		return m.Todo{}, err
 	}
 
-	if err := shared.Validator.Struct(params); err != nil {
+	if err := Validator.Struct(params); err != nil {
 		slog.Error("Falha na validação do Todo", "error", err)
 		return m.Todo{}, err
 	}

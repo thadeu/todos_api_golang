@@ -11,7 +11,6 @@ import (
 	. "todoapp/internal/shared"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 )
@@ -26,9 +25,12 @@ func NewTodoHandler(service *TodoService, logger *LokiLogger) *TodoHandler {
 }
 
 func (t *TodoHandler) GetAllTodos(c *gin.Context) {
-	// Criar span manual para teste
-	tracer := otel.Tracer("todoapp")
-	ctx, span := tracer.Start(c.Request.Context(), "GetAllTodos-manual")
+	// Criar span para operação do handler
+	ctx, span := CreateChildSpan(c.Request.Context(), "handler.todo.GetAllTodos", []attribute.KeyValue{
+		attribute.String("handler.operation", "GetAllTodos"),
+		attribute.String("handler.method", c.Request.Method),
+		attribute.String("handler.path", c.FullPath()),
+	})
 	defer span.End()
 
 	userId := c.GetInt("x-user-id")
@@ -49,6 +51,7 @@ func (t *TodoHandler) GetAllTodos(c *gin.Context) {
 	data, err := t.Service.GetTodosWithPagination(ctx, userId, limit, cursor)
 
 	if err != nil {
+		AddSpanError(span, err)
 		t.Logger.Logger.Ctx(ctx).Error("Failed to get todos",
 			zap.Error(err),
 			zap.Int("user_id", userId),
@@ -56,6 +59,12 @@ func (t *TodoHandler) GetAllTodos(c *gin.Context) {
 		SendInternalError(c, "Erro ao buscar todos")
 		return
 	}
+
+	// Adicionar atributos de sucesso
+	span.SetAttributes(
+		attribute.Int("http.status_code", http.StatusOK),
+		attribute.String("response.type", "success"),
+	)
 
 	c.JSON(http.StatusOK, data)
 }
