@@ -32,7 +32,6 @@ type LokiStream struct {
 }
 
 func NewLokiLogger(serviceName, lokiURL string) (*LokiLogger, error) {
-	// Configuração do Zap
 	config := zap.NewProductionConfig()
 	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	config.EncoderConfig.TimeKey = "timestamp"

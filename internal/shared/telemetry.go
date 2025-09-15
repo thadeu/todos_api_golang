@@ -31,7 +31,6 @@ type Telemetry struct {
 }
 
 func InitTelemetry(config TelemetryConfig) (*Telemetry, error) {
-	// Resource identifica o serviço
 	res := resource.NewWithAttributes(
 		semconv.SchemaURL,
 		semconv.ServiceNameKey.String(config.ServiceName),
@@ -39,44 +38,41 @@ func InitTelemetry(config TelemetryConfig) (*Telemetry, error) {
 		semconv.DeploymentEnvironmentKey.String("development"),
 	)
 
-	// Setup Prometheus registry
 	registry := prometheus.NewRegistry()
 
-	// Setup meter provider
 	meterProvider := sdkmetric.NewMeterProvider(
 		sdkmetric.WithResource(res),
 	)
 	otel.SetMeterProvider(meterProvider)
 
-	// Setup OTLP gRPC exporter for Tempo
 	ctx := context.Background()
+
 	otlpExporter, err := otlptracegrpc.New(
 		ctx,
 		otlptracegrpc.WithEndpoint(config.OTLPEndpoint),
 		otlptracegrpc.WithInsecure(),
 	)
+
 	if err != nil {
 		return nil, err
 	}
 
-	// Setup tracer provider
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(otlpExporter,
 			sdktrace.WithBatchTimeout(1*time.Second),
-			sdktrace.WithMaxExportBatchSize(1), // Force flush after each span
+			sdktrace.WithMaxExportBatchSize(1),
 		),
 		sdktrace.WithResource(res),
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
 	)
 	otel.SetTracerProvider(tracerProvider)
 
-	// Inicializar métricas de runtime
 	err = runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second))
+
 	if err != nil {
 		return nil, err
 	}
 
-	// Setup HTTP server para métricas do Prometheus
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 
@@ -87,7 +83,6 @@ func InitTelemetry(config TelemetryConfig) (*Telemetry, error) {
 		WriteTimeout: 15 * time.Second,
 	}
 
-	// Iniciar servidor de métricas em goroutine
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			// Log error but don't fail the application
@@ -104,17 +99,14 @@ func InitTelemetry(config TelemetryConfig) (*Telemetry, error) {
 }
 
 func (t *Telemetry) Shutdown(ctx context.Context) error {
-	// Shutdown tracer provider
 	if err := t.TracerProvider.Shutdown(ctx); err != nil {
 		return err
 	}
 
-	// Shutdown meter provider
 	if err := t.MeterProvider.Shutdown(ctx); err != nil {
 		return err
 	}
 
-	// Shutdown HTTP server
 	if err := t.Server.Shutdown(ctx); err != nil {
 		return err
 	}

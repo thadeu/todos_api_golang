@@ -19,8 +19,8 @@ import (
 )
 
 func InitDB() *sql.DB {
-	// Garantir que o TracerProvider esteja configurado
 	tracerProvider := otel.GetTracerProvider()
+
 	if tracerProvider == nil {
 		log.Fatal("TracerProvider not configured. Initialize telemetry first.")
 	}
@@ -32,13 +32,14 @@ func InitDB() *sql.DB {
 		dbPath = "db/database.db"
 	}
 
-	// Primeiro, executar migrações com banco não instrumentado
 	migrationDB, err := sql.Open("sqlite3", dbPath)
+
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	migrationsPath := os.Getenv("MIGRATIONS_PATH")
+
 	if migrationsPath == "" {
 		migrationsPath = "db/migrations"
 	}
@@ -46,12 +47,12 @@ func InitDB() *sql.DB {
 	RunMigrations(migrationDB, migrationsPath)
 	migrationDB.Close()
 
-	// Agora criar o banco instrumentado para a aplicação
 	sqlDB, err := otelsql.Open("sqlite3", dbPath,
 		otelsql.WithDBSystem("sqlite"),
 		otelsql.WithDBName("todoapp"),
 		otelsql.WithTracerProvider(tracerProvider),
 	)
+
 	if err != nil {
 		log.Fatal(err)
 	}

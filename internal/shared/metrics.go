@@ -84,7 +84,6 @@ func NewAppMetrics(registry prometheus.Registerer) *AppMetrics {
 		),
 	}
 
-	// Registrar todas as métricas no registry
 	registry.MustRegister(
 		metrics.requestDuration,
 		metrics.requestTotal,
@@ -130,6 +129,7 @@ func (m *AppMetrics) StartSystemMetrics(ctx context.Context) {
 
 	go func() {
 		defer ticker.Stop()
+
 		for {
 			select {
 			case <-ticker.C:
