@@ -47,18 +47,19 @@ func SetupGinMiddlewareWithConfig(router *gin.Engine, serviceName string, metric
 	// Logging middleware
 	router.Use(LoggingMiddleware(logger))
 
-	// Rate Limiting middleware
-	if config.RateLimitEnabled {
-		rateLimiter := NewRateLimiter(logger.Logger.Logger, metrics)
-		router.Use(rateLimiter.RateLimitMiddleware())
-	}
-
+	// Response Cache middleware (BEFORE rate limiting to avoid cache hits consuming rate limit)
 	if config.CacheEnabled {
 		responseCache := NewResponseCache(logger.Logger.Logger, metrics)
 		for path, cacheConfig := range config.CacheConfigs {
 			responseCache.SetConfig(path, cacheConfig)
 		}
 		router.Use(responseCache.CacheMiddleware())
+	}
+
+	// Rate Limiting middleware (AFTER cache to only count actual requests)
+	if config.RateLimitEnabled {
+		rateLimiter := NewRateLimiter(logger.Logger.Logger, metrics)
+		router.Use(rateLimiter.RateLimitMiddleware())
 	}
 
 	// Custom metrics middleware

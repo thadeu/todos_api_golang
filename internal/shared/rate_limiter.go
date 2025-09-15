@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,15 +20,16 @@ type RateLimitEndpointConfig struct {
 	KeyFunc  func(*gin.Context) string
 }
 
-// RateLimiter estrutura para gerenciar rate limiting
+// RateLimiter structure for managing rate limiting
 type RateLimiter struct {
 	cache   *cache.Cache
 	config  map[string]RateLimitEndpointConfig
 	logger  *zap.Logger
 	metrics *AppMetrics
+	mutex   sync.RWMutex
 }
 
-// RateLimitEntry entrada no cache para rate limiting
+// RateLimitEntry cache entry for rate limiting
 type RateLimitEntry struct {
 	Count     int
 	ResetTime time.Time
@@ -38,23 +40,43 @@ func NewRateLimiter(logger *zap.Logger, metrics *AppMetrics) *RateLimiter {
 	c := cache.New(5*time.Minute, 10*time.Minute)
 
 	configs := map[string]RateLimitEndpointConfig{
-		"/signup": {
-			Requests: 100,
-			Window:   time.Second,
+		"POST /signup": {
+			Requests: 5,
+			Window:   time.Minute,
 			KeyFunc:  GetClientIP,
 		},
-		"/auth": {
-			Requests: 20,
-			Window:   time.Second,
+		"POST /auth": {
+			Requests: 10,
+			Window:   time.Minute,
 			KeyFunc:  GetClientIP,
+		},
+		"GET /todos": {
+			Requests: 100,
+			Window:   time.Minute,
+			KeyFunc:  getUserID,
+		},
+		"POST /todos": {
+			Requests: 20,
+			Window:   time.Minute,
+			KeyFunc:  getUserID,
+		},
+		"PUT /todo/:uuid": {
+			Requests: 10,
+			Window:   time.Minute,
+			KeyFunc:  getUserID,
+		},
+		"DELETE /todos/:uuid": {
+			Requests: 5,
+			Window:   time.Minute,
+			KeyFunc:  getUserID,
 		},
 		"/todos": {
 			Requests: 100,
-			Window:   time.Second,
+			Window:   time.Minute,
 			KeyFunc:  getUserID,
 		},
 		"default": {
-			Requests: 500,
+			Requests: 60,
 			Window:   time.Minute,
 			KeyFunc:  GetClientIP,
 		},
@@ -65,10 +87,11 @@ func NewRateLimiter(logger *zap.Logger, metrics *AppMetrics) *RateLimiter {
 		config:  configs,
 		logger:  logger,
 		metrics: metrics,
+		mutex:   sync.RWMutex{},
 	}
 }
 
-// RateLimitMiddleware middleware para rate limiting
+// RateLimitMiddleware middleware for rate limiting
 func (rl *RateLimiter) RateLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.FullPath()
@@ -76,14 +99,33 @@ func (rl *RateLimiter) RateLimitMiddleware() gin.HandlerFunc {
 			path = c.Request.URL.Path
 		}
 
-		config, exists := rl.config[path]
+		// Normalize path for pattern matching
+		normalizedPath := rl.normalizePath(path)
+		methodPath := c.Request.Method + " " + normalizedPath
+
+		// Find configuration
+		config, exists := rl.config[methodPath]
 		if !exists {
-			config = rl.config["default"]
+			config, exists = rl.config[normalizedPath]
+			if !exists {
+				config = rl.config["default"]
+			}
 		}
 
-		key := rl.generateKey(c, path, config.KeyFunc)
+		// Generate key for rate limiting
+		key := rl.generateKey(c, methodPath, config.KeyFunc)
 
-		// Verificar rate limit
+		// Debug logging for troubleshooting
+		rl.logger.Info("Rate limit check",
+			zap.String("method", c.Request.Method),
+			zap.String("path", path),
+			zap.String("normalizedPath", normalizedPath),
+			zap.String("methodPath", methodPath),
+			zap.String("key", key),
+			zap.Int("limit", config.Requests),
+			zap.Duration("window", config.Window))
+
+		// Check rate limit
 		allowed, remaining, resetTime, err := rl.checkRateLimit(key, config)
 		if err != nil {
 			rl.logger.Error("Rate limit check failed",
@@ -99,7 +141,7 @@ func (rl *RateLimiter) RateLimitMiddleware() gin.HandlerFunc {
 			keyType = "user"
 		}
 
-		// Adicionar headers informativos
+		// Add informative headers
 		c.Header("X-RateLimit-Limit", strconv.Itoa(config.Requests))
 		c.Header("X-RateLimit-Remaining", strconv.Itoa(remaining))
 		c.Header("X-RateLimit-Reset", strconv.FormatInt(resetTime.Unix(), 10))
@@ -136,33 +178,69 @@ func (rl *RateLimiter) RateLimitMiddleware() gin.HandlerFunc {
 func (rl *RateLimiter) checkRateLimit(key string, config RateLimitEndpointConfig) (bool, int, time.Time, error) {
 	now := time.Now()
 
-	// Buscar entrada no cache
+	// Use write lock to prevent race conditions
+	rl.mutex.Lock()
+	defer rl.mutex.Unlock()
+
+	// Get existing entry
 	if entry, found := rl.cache.Get(key); found {
 		rateLimitEntry := entry.(RateLimitEntry)
 
-		if now.Before(rateLimitEntry.ResetTime) {
-			if rateLimitEntry.Count >= config.Requests {
-				return false, 0, rateLimitEntry.ResetTime, nil
+		// Check if window has expired
+		if now.After(rateLimitEntry.ResetTime) {
+			// Window expired, create new entry
+			resetTime := now.Add(config.Window)
+			newEntry := RateLimitEntry{
+				Count:     1,
+				ResetTime: resetTime,
 			}
-
-			// Incrementar contador
-			rateLimitEntry.Count++
-			rl.cache.Set(key, rateLimitEntry, cache.DefaultExpiration)
-
-			return true, config.Requests - rateLimitEntry.Count, rateLimitEntry.ResetTime, nil
+			rl.cache.Set(key, newEntry, config.Window)
+			return true, config.Requests - 1, resetTime, nil
 		}
+
+		// Check if limit exceeded
+		if rateLimitEntry.Count >= config.Requests {
+			return false, 0, rateLimitEntry.ResetTime, nil
+		}
+
+		// Increment counter
+		rateLimitEntry.Count++
+		rl.cache.Set(key, rateLimitEntry, cache.DefaultExpiration)
+
+		return true, config.Requests - rateLimitEntry.Count, rateLimitEntry.ResetTime, nil
 	}
 
-	// Criar nova entrada ou resetar contador
+	// Create new entry
 	resetTime := now.Add(config.Window)
 	newEntry := RateLimitEntry{
 		Count:     1,
 		ResetTime: resetTime,
 	}
-
 	rl.cache.Set(key, newEntry, config.Window)
 
 	return true, config.Requests - 1, resetTime, nil
+}
+
+// normalizePath normalizes a path by replacing UUIDs with :uuid pattern
+func (rl *RateLimiter) normalizePath(path string) string {
+	// Handle specific patterns
+	if strings.HasPrefix(path, "/todo/") {
+		// /todo/123 -> /todo/:uuid
+		parts := strings.Split(path, "/")
+		if len(parts) >= 3 {
+			parts[2] = ":uuid"
+			return strings.Join(parts, "/")
+		}
+	}
+	if strings.HasPrefix(path, "/todos/") {
+		// /todos/123 -> /todos/:uuid
+		parts := strings.Split(path, "/")
+		if len(parts) >= 3 {
+			parts[2] = ":uuid"
+			return strings.Join(parts, "/")
+		}
+	}
+	return path
 }
 
 // generateKey generates unique key for rate limiting
@@ -176,12 +254,13 @@ func getUserID(c *gin.Context) string {
 	if userID, exists := c.Get("x-user-id"); exists {
 		return fmt.Sprintf("user_%v", userID)
 	}
-
 	return GetClientIP(c)
 }
 
 // SetConfig allows configuring rate limits for specific endpoints
 func (rl *RateLimiter) SetConfig(path string, config RateLimitEndpointConfig) {
+	rl.mutex.Lock()
+	defer rl.mutex.Unlock()
 	rl.config[path] = config
 }
 
@@ -189,7 +268,7 @@ func (rl *RateLimiter) SetConfig(path string, config RateLimitEndpointConfig) {
 func (rl *RateLimiter) GetStats() map[string]interface{} {
 	stats := make(map[string]interface{})
 
-	// Contar entradas ativas no cache
+	// Count active entries in cache
 	activeEntries := rl.cache.ItemCount()
 
 	stats["active_entries"] = activeEntries
