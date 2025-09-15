@@ -21,7 +21,7 @@ type JWT struct {
 func (j *JWT) CreateToken(userId int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userId,
-		"exp":     time.Now().Add(time.Minute * 60).Unix(),
+		"exp":     time.Now().Add(time.Minute * 3600).Unix(),
 	})
 
 	return token.SignedString([]byte(j.Secret))

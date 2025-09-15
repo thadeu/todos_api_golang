@@ -11,40 +11,59 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
 	sqldblogger "github.com/simukti/sqldb-logger"
+	"github.com/uptrace/opentelemetry-go-extra/otelsql"
+	"go.opentelemetry.io/otel"
 
 	"github.com/rs/zerolog"
 	"github.com/simukti/sqldb-logger/logadapter/zerologadapter"
 )
 
 func InitDB() *sql.DB {
+	// Garantir que o TracerProvider esteja configurado
+	tracerProvider := otel.GetTracerProvider()
+	if tracerProvider == nil {
+		log.Fatal("TracerProvider not configured. Initialize telemetry first.")
+	}
+
+	log.Printf("Initializing database with TracerProvider: %T", tracerProvider)
 	dbPath := os.Getenv("DATABASE_PATH")
 
 	if dbPath == "" {
 		dbPath = "db/database.db"
 	}
 
-	db, err := sql.Open("sqlite3", dbPath)
-
-	db.SetMaxOpenConns(100)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	logger := zerolog.New(os.Stdout)
-
-	db = sqldblogger.OpenDriver(dbPath, db.Driver(), zerologadapter.New(logger))
-
+	// Primeiro, executar migrações com banco não instrumentado
+	migrationDB, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	migrationsPath := os.Getenv("MIGRATIONS_PATH")
-
 	if migrationsPath == "" {
 		migrationsPath = "db/migrations"
 	}
 
-	RunMigrations(db, migrationsPath)
+	RunMigrations(migrationDB, migrationsPath)
+	migrationDB.Close()
+
+	// Agora criar o banco instrumentado para a aplicação
+	sqlDB, err := otelsql.Open("sqlite3", dbPath,
+		otelsql.WithDBSystem("sqlite"),
+		otelsql.WithDBName("todoapp"),
+		otelsql.WithTracerProvider(tracerProvider),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetMaxIdleConns(5)
+	sqlDB.SetConnMaxLifetime(5 * time.Minute)
+
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	logger := zerolog.New(os.Stdout)
+
+	db := sqldblogger.OpenDriver(dbPath, sqlDB.Driver(), zerologadapter.New(logger))
 
 	return db
 }

@@ -45,7 +45,7 @@ func (s *AuthHandlerSuite) SetupTest() {
 
 	globalAuthHandler.Service = NewAuthService(s.Setup.Repo)
 
-	s.Router = api.SetupRouter(api.HandlersConfig{
+	s.Router = api.SetupRouterForTests(api.HandlersConfig{
 		AuthHandler: globalAuthHandler,
 	})
 }

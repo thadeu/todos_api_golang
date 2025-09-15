@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -40,12 +41,12 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) Save(user m.User) (m.User, error) {
-	return r.CreateUser(user)
+func (r *UserRepository) Save(ctx context.Context, user m.User) (m.User, error) {
+	return r.CreateUser(ctx, user)
 }
 
-func (r *UserRepository) CreateUser(user m.User) (m.User, error) {
-	stmt, err := r.db.Prepare("INSERT INTO users (uuid, name, email, encrypted_password, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+func (r *UserRepository) CreateUser(ctx context.Context, user m.User) (m.User, error) {
+	stmt, err := r.db.PrepareContext(ctx, "INSERT INTO users (uuid, name, email, encrypted_password, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
 
 	if err != nil {
 		return m.User{}, err
@@ -55,7 +56,7 @@ func (r *UserRepository) CreateUser(user m.User) (m.User, error) {
 
 	uuid := user.UUID.String()
 
-	_, err = stmt.Exec(
+	_, err = stmt.ExecContext(ctx,
 		uuid,
 		user.Name,
 		user.Email,
@@ -181,10 +182,10 @@ func (r *UserRepository) GetUserById(id string) (m.User, error) {
 	return user, nil
 }
 
-func (r *UserRepository) GetUserByEmail(email string) (m.User, error) {
+func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (m.User, error) {
 	query := "SELECT id, uuid, name, email, encrypted_password, created_at, updated_at FROM users WHERE email = ? LIMIT 1"
 
-	row := r.db.QueryRow(query, email)
+	row := r.db.QueryRowContext(ctx, query, email)
 
 	var user m.User
 
@@ -207,7 +208,7 @@ func (r *UserRepository) GetUserByEmail(email string) (m.User, error) {
 	return user, nil
 }
 
-func (r *UserRepository) DeleteByUUID(uuid string) error {
+func (r *UserRepository) DeleteByUUID(ctx context.Context, uuid string) error {
 	stmt, err := r.db.Prepare("UPDATE users SET deleted_at = ? WHERE uuid = ?")
 
 	if err != nil {
@@ -217,7 +218,7 @@ func (r *UserRepository) DeleteByUUID(uuid string) error {
 	defer stmt.Close()
 
 	now := time.Now()
-	result, err := stmt.Exec(now, uuid)
+	result, err := stmt.ExecContext(ctx, now, uuid)
 
 	if err != nil {
 		return err

@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,6 +35,7 @@ type TodoHandlerSuite struct {
 }
 
 var globalTodoHandler *TodoHandler
+var ctx = context.Background()
 
 func (s *TodoHandlerSuite) SetupSuite() {
 	globalTodoHandler = &TodoHandler{}
@@ -46,7 +48,7 @@ func (s *TodoHandlerSuite) SetupTest() {
 	s.UserRepo = NewUserRepository(db)
 	globalTodoHandler.Service = NewTodoService(s.setup.Repo)
 
-	s.Router = api.SetupRouter(api.HandlersConfig{
+	s.Router = api.SetupRouterForTests(api.HandlersConfig{
 		TodoHandler: globalTodoHandler,
 	})
 }
@@ -61,7 +63,7 @@ func TestTodoHandlerSuite(t *testing.T) {
 }
 
 func CreateUser(s *TodoHandlerSuite) User {
-	user, _ := s.UserRepo.CreateUser(factories.NewUser[User](map[string]any{
+	user, _ := s.UserRepo.CreateUser(ctx, factories.NewUser[User](map[string]any{
 		"Name":              "User99",
 		"Email":             "user99@example.com",
 		"EncryptedPassword": "12345678",
@@ -71,7 +73,7 @@ func CreateUser(s *TodoHandlerSuite) User {
 }
 
 func CreateTodo(s *TodoHandlerSuite, userId int) Todo {
-	data, _ := s.setup.Repo.Create(factories.NewTodo[Todo](map[string]any{
+	data, _ := s.setup.Repo.Create(ctx, factories.NewTodo[Todo](map[string]any{
 		"Title":  "Task Created",
 		"UserId": userId,
 	}))
@@ -82,7 +84,7 @@ func CreateTodo(s *TodoHandlerSuite, userId int) Todo {
 func (s *TodoHandlerSuite) TestGetAllTodosWithData() {
 	user := CreateUser(s)
 
-	s.setup.Repo.Create(factories.NewTodo[Todo](map[string]any{
+	s.setup.Repo.Create(ctx, factories.NewTodo[Todo](map[string]any{
 		"Title":  "99",
 		"Status": int(TodoStatusPending),
 		"UserId": user.ID,
@@ -213,7 +215,7 @@ func (s *TodoHandlerSuite) TestUpdateTodoToCompleted() {
 func (s *TodoHandlerSuite) TestDeleteByUUIDWhenIdExists() {
 	user := CreateUser(s)
 
-	todo, _ := s.setup.Repo.Create(factories.NewTodo[Todo](map[string]any{
+	todo, _ := s.setup.Repo.Create(ctx, factories.NewTodo[Todo](map[string]any{
 		"Title":  "User",
 		"UserId": user.ID,
 	}))
@@ -309,7 +311,7 @@ func (s *TodoHandlerSuite) TestPaginationWithCursor() {
 	baseTime := time.Now()
 
 	for i := 1; i <= 5; i++ {
-		s.setup.Repo.Create(factories.NewTodo[Todo](map[string]any{
+		s.setup.Repo.Create(ctx, factories.NewTodo[Todo](map[string]any{
 			"Title":     fmt.Sprintf("Task %d", i),
 			"Status":    int(TodoStatusPending),
 			"UserId":    user.ID,

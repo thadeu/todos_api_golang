@@ -1,6 +1,7 @@
 package repositories_test
 
 import (
+	"context"
 	"strconv"
 	"testing"
 	"todoapp/internal/factories"
@@ -41,8 +42,8 @@ func (s *UserRepositoryTestSuite) TestRepository_GetAllUsers_Empty() {
 }
 
 func (s *UserRepositoryTestSuite) TestRepository_GetAllUsers_WithData() {
-	s.setup.Repo.CreateUser(factories.NewUser[User]())
-	s.setup.Repo.CreateUser(factories.NewUser[User]())
+	s.setup.Repo.CreateUser(context.Background(), factories.NewUser[User]())
+	s.setup.Repo.CreateUser(context.Background(), factories.NewUser[User]())
 
 	users, err := s.setup.Repo.GetAllUsers()
 
@@ -51,7 +52,7 @@ func (s *UserRepositoryTestSuite) TestRepository_GetAllUsers_WithData() {
 }
 
 func (s *UserRepositoryTestSuite) TestRepository_CreateUser_Success() {
-	user, err := s.setup.Repo.CreateUser(User{
+	user, err := s.setup.Repo.CreateUser(context.Background(), User{
 		UUID:  uuid.New(),
 		Name:  "Test User",
 		Email: "test@example.com",
@@ -65,7 +66,7 @@ func (s *UserRepositoryTestSuite) TestRepository_CreateUser_Success() {
 }
 
 func (s *UserRepositoryTestSuite) TestRepository_DeleteUser_Success() {
-	user, _ := s.setup.Repo.CreateUser(factories.NewUser[User]())
+	user, _ := s.setup.Repo.CreateUser(context.Background(), factories.NewUser[User]())
 
 	err := s.setup.Repo.DeleteUser(strconv.Itoa(user.ID))
 	assert.NoError(s.T(), err)
@@ -77,9 +78,9 @@ func (s *UserRepositoryTestSuite) TestRepository_DeleteUser_Success() {
 }
 
 func (s *UserRepositoryTestSuite) TestRepository_DeleteByUUID_Success() {
-	user, _ := s.setup.Repo.CreateUser(factories.NewUser[User]())
+	user, _ := s.setup.Repo.CreateUser(context.Background(), factories.NewUser[User]())
 
-	err := s.setup.Repo.DeleteByUUID(user.UUID.String())
+	err := s.setup.Repo.DeleteByUUID(context.Background(), user.UUID.String())
 	assert.NoError(s.T(), err)
 
 	_, err = s.setup.Repo.GetUserByUUID(user.UUID.String())

@@ -1,0 +1,37 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Tempo Traces",
+    "tags": ["tempo"],
+    "style": "dark",
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Traces",
+        "type": "tempo",
+        "targets": [
+          {
+            "expr": "",
+            "datasource": {
+              "type": "tempo",
+              "uid": "tempo-uid"
+            },
+            "queryType": "search",
+            "query": "service.name=todoapp"
+          }
+        ],
+        "gridPos": {
+          "h": 15,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    }
+  }
+}

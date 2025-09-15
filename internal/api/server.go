@@ -9,9 +9,10 @@ import (
 	. "todoapp/internal/handlers"
 	. "todoapp/internal/repositories"
 	. "todoapp/internal/services"
+	. "todoapp/internal/shared"
 )
 
-func StartServer() {
+func StartServer(metrics *AppMetrics, logger *LokiLogger) {
 	db := InitDB()
 
 	user := NewUserRepository(db)
@@ -20,13 +21,13 @@ func StartServer() {
 	todoService := NewTodoService(todo)
 	authService := NewAuthService(user)
 
-	todoHandler := NewTodoHandler(todoService)
+	todoHandler := NewTodoHandler(todoService, logger)
 	authHandler := NewAuthHandler(authService)
 
 	router := SetupRouter(HandlersConfig{
 		AuthHandler: authHandler,
 		TodoHandler: todoHandler,
-	})
+	}, metrics, logger)
 
 	port := GetServerPort()
 	slog.Info("Server starting", "port", port)

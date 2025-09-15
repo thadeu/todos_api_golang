@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
@@ -25,8 +26,8 @@ func NewAuthService(repo *ru.UserRepository) *AuthService {
 	return &AuthService{repo: repo}
 }
 
-func (t *AuthService) Registration(email string, password string) (m.User, error) {
-	oldUser, err := t.repo.GetUserByEmail(email)
+func (t *AuthService) Registration(ctx context.Context, email string, password string) (m.User, error) {
+	oldUser, err := t.repo.GetUserByEmail(ctx, email)
 
 	if oldUser.Email != "" {
 		slog.Error("User already exists", "error", err)
@@ -40,7 +41,7 @@ func (t *AuthService) Registration(email string, password string) (m.User, error
 		return m.User{}, fmt.Errorf("%v", "Error to create encrypted password")
 	}
 
-	user, err := t.repo.CreateUser(m.User{
+	user, err := t.repo.CreateUser(ctx, m.User{
 		UUID:              uuid.New(),
 		Email:             email,
 		EncryptedPassword: string(encrypted),
@@ -54,8 +55,8 @@ func (t *AuthService) Registration(email string, password string) (m.User, error
 	return user, nil
 }
 
-func (t *AuthService) Authenticate(email string, password string) (m.User, error) {
-	user, err := t.repo.GetUserByEmail(email)
+func (t *AuthService) Authenticate(ctx context.Context, email string, password string) (m.User, error) {
+	user, err := t.repo.GetUserByEmail(ctx, email)
 
 	userPassword := []byte(user.EncryptedPassword)
 	formPassword := []byte(password)

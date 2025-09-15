@@ -1,6 +1,7 @@
 package repositories_test
 
 import (
+	"context"
 	"strconv"
 	"testing"
 	"time"
@@ -47,9 +48,9 @@ func (s *TodoRepositoryTestSuite) TestRepository_GetAllUsers_Empty() {
 }
 
 func (s *TodoRepositoryTestSuite) TestRepository_GetAllUsers_WithData() {
-	user, _ := s.UserRepo.CreateUser(factories.NewUser[User]())
+	user, _ := s.UserRepo.CreateUser(context.Background(), factories.NewUser[User]())
 
-	s.setup.Repo.Create(factories.NewTodo[Todo](map[string]any{
+	s.setup.Repo.Create(context.Background(), factories.NewTodo[Todo](map[string]any{
 		"UserId": user.ID,
 	}))
 
@@ -60,11 +61,11 @@ func (s *TodoRepositoryTestSuite) TestRepository_GetAllUsers_WithData() {
 }
 
 func (s *TodoRepositoryTestSuite) TestRepository_CreateTodo_Success() {
-	user, _ := s.UserRepo.CreateUser(factories.NewUser[User]())
+	user, _ := s.UserRepo.CreateUser(context.Background(), factories.NewUser[User]())
 
 	status := int(TodoStatusPending)
 
-	todo, err := s.setup.Repo.Create(Todo{
+	todo, err := s.setup.Repo.Create(context.Background(), Todo{
 		UUID:        uuid.New(),
 		Title:       "My User",
 		Description: "Some description",
@@ -84,32 +85,32 @@ func (s *TodoRepositoryTestSuite) TestRepository_CreateTodo_Success() {
 }
 
 func (s *TodoRepositoryTestSuite) TestRepository_DeleteUser_Success() {
-	user, _ := s.UserRepo.CreateUser(factories.NewUser[User]())
+	user, _ := s.UserRepo.CreateUser(context.Background(), factories.NewUser[User]())
 
-	todo, _ := s.setup.Repo.Create(factories.NewTodo[Todo](map[string]any{
+	todo, _ := s.setup.Repo.Create(context.Background(), factories.NewTodo[Todo](map[string]any{
 		"UserId": user.ID,
 	}))
 
 	err := s.setup.Repo.DeleteById(strconv.Itoa(todo.ID))
 	assert.NoError(s.T(), err)
 
-	_, err = s.setup.Repo.GetByUUID(todo.UUID.String(), user.ID)
+	_, err = s.setup.Repo.GetByUUID(context.Background(), todo.UUID.String(), user.ID)
 
 	assert.Contains(s.T(), err.Error(), "no rows")
 	assert.Error(s.T(), err)
 }
 
 func (s *TodoRepositoryTestSuite) TestRepository_DeleteByUUID_Success() {
-	user, _ := s.UserRepo.CreateUser(factories.NewUser[User]())
+	user, _ := s.UserRepo.CreateUser(context.Background(), factories.NewUser[User]())
 
-	todo, _ := s.setup.Repo.Create(factories.NewTodo[Todo](map[string]any{
+	todo, _ := s.setup.Repo.Create(context.Background(), factories.NewTodo[Todo](map[string]any{
 		"UserId": user.ID,
 	}))
 
-	err := s.setup.Repo.DeleteByUUID(todo.UUID.String())
+	err := s.setup.Repo.DeleteByUUID(context.Background(), todo.UUID.String())
 	assert.NoError(s.T(), err)
 
-	_, err = s.setup.Repo.GetByUUID(todo.UUID.String(), user.ID)
+	_, err = s.setup.Repo.GetByUUID(context.Background(), todo.UUID.String(), user.ID)
 
 	Expect(err.Error()).To(ContainSubstring("no rows"))
 }

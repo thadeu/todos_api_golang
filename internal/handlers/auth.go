@@ -32,7 +32,7 @@ func (t *AuthHandler) RegisterByEmailAndPassword(c *gin.Context) {
 		return
 	}
 
-	user, err := t.Service.Registration(params.Email, params.Password)
+	user, err := t.Service.Registration(c.Request.Context(), params.Email, params.Password)
 
 	if err != nil {
 		shared.SendBadRequestError(c, "registration", err.Error())
@@ -58,7 +58,7 @@ func (t *AuthHandler) AuthByEmailAndPassword(c *gin.Context) {
 		return
 	}
 
-	user, err := t.Service.Authenticate(params.Email, params.Password)
+	user, err := t.Service.Authenticate(c.Request.Context(), params.Email, params.Password)
 
 	// Paranoid response
 	if err != nil {

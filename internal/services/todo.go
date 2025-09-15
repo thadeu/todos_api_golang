@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -46,8 +47,8 @@ func (s *TodoService) StatusOrFallback(todo m.Todo, fallback ...string) string {
 	return status
 }
 
-func (s *TodoService) GetTodosWithPagination(userId int, limit int, cursor string) (*c.CursorResponse, error) {
-	rows, hasNext, err := s.repo.GetAllWithCursor(userId, limit, cursor)
+func (s *TodoService) GetTodosWithPagination(ctx context.Context, userId int, limit int, cursor string) (*c.CursorResponse, error) {
+	rows, hasNext, err := s.repo.GetAllWithCursor(ctx, userId, limit, cursor)
 
 	data := make([]ru.TodoResponse, 0)
 
@@ -132,7 +133,7 @@ func (s *TodoService) GetAllTodos(userId int) ([]ru.TodoResponse, error) {
 	return data, nil
 }
 
-func (s *TodoService) CreateTodo(c *gin.Context, userId int) (m.Todo, error) {
+func (s *TodoService) CreateTodo(ctx context.Context, c *gin.Context, userId int) (m.Todo, error) {
 	var params ru.TodoRequest
 
 	err := json.NewDecoder(c.Request.Body).Decode(&params)
@@ -176,7 +177,7 @@ func (s *TodoService) CreateTodo(c *gin.Context, userId int) (m.Todo, error) {
 		return m.Todo{}, fmt.Errorf("%v", errors[len(errors)-1].Message)
 	}
 
-	todo, err := s.repo.Create(newTodo)
+	todo, err := s.repo.Create(ctx, newTodo)
 
 	if err != nil {
 		return m.Todo{}, err
@@ -185,7 +186,7 @@ func (s *TodoService) CreateTodo(c *gin.Context, userId int) (m.Todo, error) {
 	return todo, nil
 }
 
-func (s *TodoService) UpdateTodoByUUID(c *gin.Context, userId int) (m.Todo, error) {
+func (s *TodoService) UpdateTodoByUUID(ctx context.Context, c *gin.Context, userId int) (m.Todo, error) {
 	id := c.Param("uuid")
 
 	var params ru.TodoRequest
@@ -200,7 +201,7 @@ func (s *TodoService) UpdateTodoByUUID(c *gin.Context, userId int) (m.Todo, erro
 		return m.Todo{}, err
 	}
 
-	todo, err := s.repo.UpdateByUUID(id, userId, params)
+	todo, err := s.repo.UpdateByUUID(ctx, id, userId, params)
 
 	if err != nil {
 		return m.Todo{}, err
@@ -227,20 +228,20 @@ func (s *TodoService) DeleteTodo(c *gin.Context, userId int) {
 	c.JSON(http.StatusOK, gin.H{"message": "Todo deletado com sucesso"})
 }
 
-func (s *TodoService) DeleteByUUID(c *gin.Context, userId int) (map[string]any, error) {
+func (s *TodoService) DeleteByUUID(ctx context.Context, c *gin.Context, userId int) (map[string]any, error) {
 	id := c.Param("uuid")
 
 	if id == "" {
 		return nil, fmt.Errorf("ID é obrigatório")
 	}
 
-	_, err := s.repo.GetByUUID(id, userId)
+	_, err := s.repo.GetByUUID(ctx, id, userId)
 
 	if err != nil {
 		return nil, fmt.Errorf("desculpe, mas seu todo não foi encontrado")
 	}
 
-	if err := s.repo.DeleteByUUID(id); err != nil {
+	if err := s.repo.DeleteByUUID(ctx, id); err != nil {
 		return nil, err
 	}
 

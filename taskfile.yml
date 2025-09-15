@@ -5,8 +5,6 @@ dotenv: ['.env']
 tasks:
   default:
     deps: [test]
-    # cmds:
-    #   - task: dev
 
   test:
     aliases: [t]
@@ -58,3 +56,42 @@ tasks:
     cmds:
       - echo "Running migrations down..."
       - migrate -database $DATABASE_URL -path migrations down
+
+  # Monitoring tasks
+  monitoring:setup:
+    aliases: [mon:setup]
+    cmds:
+      - echo "Setting up monitoring services..."
+      - ./scripts/setup-monitoring.sh
+
+  monitoring:start:
+    aliases: [mon:start]
+    cmds:
+      - echo "Starting monitoring services..."
+      - docker-compose up -d
+
+  monitoring:stop:
+    aliases: [mon:stop]
+    cmds:
+      - echo "Stopping monitoring services..."
+      - docker-compose down
+
+  monitoring:logs:
+    aliases: [mon:logs]
+    cmds:
+      - docker-compose logs -f
+
+  monitoring:status:
+    aliases: [mon:status]
+    cmds:
+      - docker-compose ps
+
+  # Run application with monitoring
+  run:monitored:
+    aliases: [run:mon]
+    cmds:
+      # - echo "Starting TodoApp with monitoring..."
+      # - echo "Grafana: http://localhost:3000 (admin/admin123)"
+      # - echo "Prometheus: http://localhost:9090"
+      # - echo "Metrics: http://localhost:9091"
+      - task: dev

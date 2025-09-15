@@ -12,14 +12,16 @@ type HandlersConfig struct {
 	TodoHandler *TodoHandler
 }
 
-func SetupRouter(handlers HandlersConfig) *gin.Engine {
+func SetupRouter(handlers HandlersConfig, metrics *AppMetrics, logger *LokiLogger) *gin.Engine {
 	if gin.Mode() == "" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.New()
 
-	router.Use(gin.Logger())
+	// Setup OpenTelemetry, logging and metrics middleware
+	SetupGinMiddleware(router, "todoapp", metrics, logger)
+
 	router.Use(gin.Recovery())
 	router.Use(corsMiddleware())
 
@@ -66,4 +68,28 @@ func corsMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+// SetupRouterForTests cria um router simplificado para testes sem OpenTelemetry
+func SetupRouterForTests(handlers HandlersConfig) *gin.Engine {
+	if gin.Mode() == "" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	router := gin.New()
+
+	// Middlewares básicos para testes
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
+	router.Use(corsMiddleware())
+
+	if handlers.AuthHandler != nil {
+		setupPublicRoutes(router, handlers.AuthHandler)
+	}
+
+	if handlers.TodoHandler != nil {
+		setupProtectedRoutes(router, handlers.TodoHandler)
+	}
+
+	return router
 }

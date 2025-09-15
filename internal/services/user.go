@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -46,7 +47,7 @@ func (s *UserService) GetAllUsers() ([]ru.UserResponse, error) {
 	return data, nil
 }
 
-func (s *UserService) CreateUser(r *http.Request) (m.User, error) {
+func (s *UserService) CreateUser(ctx context.Context, r *http.Request) (m.User, error) {
 	var params ru.UserRequest
 
 	err := json.NewDecoder(r.Body).Decode(&params)
@@ -66,7 +67,7 @@ func (s *UserService) CreateUser(r *http.Request) (m.User, error) {
 		DeletedAt: nil,
 	}
 
-	user, err := s.repo.CreateUser(newUser)
+	user, err := s.repo.CreateUser(ctx, newUser)
 
 	if err != nil {
 		return m.User{}, err
@@ -99,7 +100,7 @@ func (s *UserService) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *UserService) DeleteByUUID(r *http.Request) (map[string]any, error) {
+func (s *UserService) DeleteByUUID(ctx context.Context, r *http.Request) (map[string]any, error) {
 	id := r.PathValue("uuid")
 
 	if id == "" {
@@ -112,7 +113,7 @@ func (s *UserService) DeleteByUUID(r *http.Request) (map[string]any, error) {
 		return nil, err
 	}
 
-	if err := s.repo.DeleteByUUID(id); err != nil {
+	if err := s.repo.DeleteByUUID(ctx, id); err != nil {
 		return nil, err
 	}
 

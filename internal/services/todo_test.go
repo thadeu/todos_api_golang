@@ -1,6 +1,7 @@
 package services_test
 
 import (
+	"context"
 	"testing"
 	"todoapp/internal/factories"
 
@@ -44,15 +45,15 @@ func (s *TodoServiceTestSuite) TestService_GetAllUsers_Empty() {
 }
 
 func (s *TodoServiceTestSuite) TestService_GetAllUsers_WithData() {
-	user, _ := s.UserRepo.CreateUser(factories.NewUser[User]())
+	user, _ := s.UserRepo.CreateUser(context.Background(), factories.NewUser[User]())
 
 	item1 := factories.NewTodo[Todo](map[string]any{
 		"UserId": user.ID,
 	})
-	s.setup.Repo.Create(item1)
+	s.setup.Repo.Create(context.Background(), item1)
 
 	item2 := factories.NewTodo[Todo]()
-	s.setup.Repo.Create(item2)
+	s.setup.Repo.Create(context.Background(), item2)
 
 	todos, err := s.Service.GetAllTodos(user.ID)
 
@@ -61,7 +62,7 @@ func (s *TodoServiceTestSuite) TestService_GetAllUsers_WithData() {
 }
 
 func (s *TodoServiceTestSuite) TestService_CreateUser_Success() {
-	data, _ := s.setup.Repo.Create(factories.NewTodo[Todo](map[string]any{
+	data, _ := s.setup.Repo.Create(context.Background(), factories.NewTodo[Todo](map[string]any{
 		"Title": "Test Todo",
 	}))
 
@@ -72,7 +73,7 @@ func (s *TodoServiceTestSuite) TestService_CreateUser_Success() {
 }
 
 func (s *TodoServiceTestSuite) TestService_DeleteByUUID_Success() {
-	data, _ := s.setup.Repo.Create(factories.NewTodo[Todo](map[string]any{
+	data, _ := s.setup.Repo.Create(context.Background(), factories.NewTodo[Todo](map[string]any{
 		"Title": "Test Todo 2",
 	}))
 
@@ -82,6 +83,6 @@ func (s *TodoServiceTestSuite) TestService_DeleteByUUID_Success() {
 }
 
 func (s *TodoServiceTestSuite) TestService_DeleteByUUID_NotFound() {
-	err := s.setup.Repo.DeleteByUUID("non-existent-uuid")
+	err := s.setup.Repo.DeleteByUUID(context.Background(), "non-existent-uuid")
 	assert.Error(s.T(), err)
 }

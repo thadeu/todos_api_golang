@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -75,8 +76,8 @@ func NewTodoRepository(db *sql.DB) *TodoRepository {
 	return &TodoRepository{db: db}
 }
 
-func (r *TodoRepository) Create(todo m.Todo) (m.Todo, error) {
-	stmt, err := r.db.Prepare("INSERT INTO todos (uuid, title, description, status, completed, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+func (r *TodoRepository) Create(ctx context.Context, todo m.Todo) (m.Todo, error) {
+	stmt, err := r.db.PrepareContext(ctx, "INSERT INTO todos (uuid, title, description, status, completed, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 
 	if err != nil {
 		return m.Todo{}, err
@@ -91,7 +92,7 @@ func (r *TodoRepository) Create(todo m.Todo) (m.Todo, error) {
 		status = todo.Status
 	}
 
-	_, err = stmt.Exec(
+	_, err = stmt.ExecContext(ctx,
 		uuid,
 		todo.Title,
 		todo.Description,
@@ -107,7 +108,7 @@ func (r *TodoRepository) Create(todo m.Todo) (m.Todo, error) {
 		return m.Todo{}, err
 	}
 
-	saved, err := r.GetByUUID(uuid, todo.UserId)
+	saved, err := r.GetByUUID(ctx, uuid, todo.UserId)
 
 	if err != nil {
 		return m.Todo{}, err
@@ -116,7 +117,7 @@ func (r *TodoRepository) Create(todo m.Todo) (m.Todo, error) {
 	return saved, nil
 }
 
-func (r *TodoRepository) GetAllWithCursor(userId int, limit int, cursor string) ([]m.Todo, bool, error) {
+func (r *TodoRepository) GetAllWithCursor(ctx context.Context, userId int, limit int, cursor string) ([]m.Todo, bool, error) {
 	actualLimit := limit + 1
 
 	var query string
@@ -147,7 +148,7 @@ func (r *TodoRepository) GetAllWithCursor(userId int, limit int, cursor string) 
 		args = []interface{}{userId, datetime, datetime, id, actualLimit}
 	}
 
-	stmt, err := r.db.Prepare(query)
+	stmt, err := r.db.PrepareContext(ctx, query)
 
 	if err != nil {
 		slog.Error("Error fetching todos", "error", err)
@@ -156,7 +157,7 @@ func (r *TodoRepository) GetAllWithCursor(userId int, limit int, cursor string) 
 
 	defer stmt.Close()
 
-	rows, err := stmt.Query(args...)
+	rows, err := stmt.QueryContext(ctx, args...)
 
 	if err != nil {
 		slog.Error("Error fetching todos", "error", err)
@@ -232,10 +233,10 @@ func (r *TodoRepository) GetAll(userId int) ([]m.Todo, error) {
 	return data, nil
 }
 
-func (r *TodoRepository) GetByUUID(id string, userId int) (m.Todo, error) {
+func (r *TodoRepository) GetByUUID(ctx context.Context, id string, userId int) (m.Todo, error) {
 	query := "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at FROM todos WHERE uuid = ? AND deleted_at IS NULL LIMIT 1"
 
-	row := r.db.QueryRow(query, id)
+	row := r.db.QueryRowContext(ctx, query, id)
 
 	var todo m.Todo
 
@@ -259,10 +260,10 @@ func (r *TodoRepository) GetByUUID(id string, userId int) (m.Todo, error) {
 	return todo, nil
 }
 
-func (r *TodoRepository) GetById(id string) (m.Todo, error) {
+func (r *TodoRepository) GetById(ctx context.Context, id string) (m.Todo, error) {
 	query := "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at, deleted_at FROM todos WHERE id = ? AND deleted_at IS NULL LIMIT 1"
 
-	row := r.db.QueryRow(query, id)
+	row := r.db.QueryRowContext(ctx, query, id)
 
 	var todo m.Todo
 	var uuidStr string
@@ -277,8 +278,8 @@ func (r *TodoRepository) GetById(id string) (m.Todo, error) {
 	return todo, nil
 }
 
-func (r *TodoRepository) UpdateByUUID(id string, userId int, params TodoRequest) (m.Todo, error) {
-	oldTodo, err := r.GetByUUID(id, userId)
+func (r *TodoRepository) UpdateByUUID(ctx context.Context, id string, userId int, params TodoRequest) (m.Todo, error) {
+	oldTodo, err := r.GetByUUID(ctx, id, userId)
 
 	if err != nil {
 		return m.Todo{}, fmt.Errorf("todo with uuid %s not found", id)
@@ -331,7 +332,7 @@ func (r *TodoRepository) UpdateByUUID(id string, userId int, params TodoRequest)
 	args = append(args, id)
 
 	query := fmt.Sprintf("UPDATE todos SET %s WHERE uuid = ? AND deleted_at IS NULL", strings.Join(setParts, ", "))
-	stmt, err := r.db.Prepare(query)
+	stmt, err := r.db.PrepareContext(ctx, query)
 
 	if err != nil {
 		return m.Todo{}, err
@@ -339,7 +340,7 @@ func (r *TodoRepository) UpdateByUUID(id string, userId int, params TodoRequest)
 
 	defer stmt.Close()
 
-	result, err := stmt.Exec(args...)
+	result, err := stmt.ExecContext(ctx, args...)
 
 	if err != nil {
 		slog.Error("Error updating todo", "error", err)
@@ -352,7 +353,7 @@ func (r *TodoRepository) UpdateByUUID(id string, userId int, params TodoRequest)
 		return m.Todo{}, fmt.Errorf("todo with uuid %s not found", id)
 	}
 
-	updatedTodo, err := r.GetByUUID(id, oldTodo.UserId)
+	updatedTodo, err := r.GetByUUID(ctx, id, oldTodo.UserId)
 
 	if err != nil {
 		return m.Todo{}, err
@@ -380,8 +381,8 @@ func (r *TodoRepository) DeleteById(id string) error {
 	return nil
 }
 
-func (r *TodoRepository) DeleteByUUID(uuid string) error {
-	stmt, err := r.db.Prepare("UPDATE todos SET deleted_at = ? WHERE uuid = ?")
+func (r *TodoRepository) DeleteByUUID(ctx context.Context, uuid string) error {
+	stmt, err := r.db.PrepareContext(ctx, "UPDATE todos SET deleted_at = ? WHERE uuid = ?")
 
 	if err != nil {
 		return err
@@ -390,7 +391,7 @@ func (r *TodoRepository) DeleteByUUID(uuid string) error {
 	defer stmt.Close()
 
 	now := time.Now()
-	result, err := stmt.Exec(now, uuid)
+	result, err := stmt.ExecContext(ctx, now, uuid)
 
 	if err != nil {
 		return err

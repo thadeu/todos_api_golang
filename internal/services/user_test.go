@@ -1,6 +1,7 @@
 package services_test
 
 import (
+	"context"
 	"testing"
 	"todoapp/internal/factories"
 
@@ -43,10 +44,10 @@ func (s *ServiceTestSuite) TestService_GetAllUsers_Empty() {
 
 func (s *ServiceTestSuite) TestService_GetAllUsers_WithData() {
 	user1 := factories.NewUser[User]()
-	s.setup.Repo.CreateUser(user1)
+	s.setup.Repo.CreateUser(context.Background(), user1)
 
 	user2 := factories.NewUser[User]()
-	s.setup.Repo.CreateUser(user2)
+	s.setup.Repo.CreateUser(context.Background(), user2)
 
 	users, err := s.Service.GetAllUsers()
 
@@ -55,7 +56,7 @@ func (s *ServiceTestSuite) TestService_GetAllUsers_WithData() {
 }
 
 func (s *ServiceTestSuite) TestService_CreateUser_Success() {
-	user, _ := s.setup.Repo.CreateUser(factories.NewUser[User](map[string]any{
+	user, _ := s.setup.Repo.CreateUser(context.Background(), factories.NewUser[User](map[string]any{
 		"Name":  "Test User",
 		"Email": "test@example.com",
 	}))
@@ -67,7 +68,7 @@ func (s *ServiceTestSuite) TestService_CreateUser_Success() {
 }
 
 func (s *ServiceTestSuite) TestService_DeleteByUUID_Success() {
-	user, _ := s.setup.Repo.CreateUser(factories.NewUser[User](map[string]any{
+	user, _ := s.setup.Repo.CreateUser(context.Background(), factories.NewUser[User](map[string]any{
 		"Name":  "Test User 2",
 		"Email": "test@example.com",
 	}))
@@ -79,6 +80,6 @@ func (s *ServiceTestSuite) TestService_DeleteByUUID_Success() {
 }
 
 func (s *ServiceTestSuite) TestService_DeleteByUUID_NotFound() {
-	err := s.setup.Repo.DeleteByUUID("non-existent-uuid")
+	err := s.setup.Repo.DeleteByUUID(context.Background(), "non-existent-uuid")
 	assert.Error(s.T(), err)
 }
