@@ -50,6 +50,7 @@ func setupPublicRoutes(router *gin.Engine, authHandler *AuthHandler) {
 
 func setupProtectedRoutes(router *gin.Engine, todoHandler *TodoHandler) {
 	protected := router.Group("/")
+	protected.Use(CurrentMiddleware())
 	protected.Use(GinJwtMiddleware())
 	{
 		protected.GET("/todos", todoHandler.GetAllTodos)

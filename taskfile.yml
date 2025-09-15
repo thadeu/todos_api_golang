@@ -15,7 +15,7 @@ tasks:
     aliases: [tw]
     cmds:
       - task: test
-      - gotest --watch --format testdox --format-hide-empty-pkg
+      - bin/gotest --watch --format testdox --format-hide-empty-pkg
 
   cover:
     cmds:

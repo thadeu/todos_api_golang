@@ -49,7 +49,6 @@ func (s *TodoService) StatusOrFallback(todo m.Todo, fallback ...string) string {
 }
 
 func (s *TodoService) GetTodosWithPagination(ctx context.Context, userId int, limit int, cursor string) (*c.CursorResponse, error) {
-	// Criar span para operação de serviço
 	ctx, span := CreateChildSpan(ctx, "service.todo.GetTodosWithPagination", []attribute.KeyValue{
 		attribute.Int("user.id", userId),
 		attribute.Int("todo.limit", limit),

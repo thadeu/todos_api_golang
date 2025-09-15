@@ -68,7 +68,6 @@ func JwtAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		token, err := VerifyJwtToken(bearer[len("Bearer "):])
-		// slog.Info("Token", "token", token)
 
 		if err != nil {
 			slog.Info("Error", "error", err)
@@ -107,7 +106,7 @@ func GinJwtMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		token, err := VerifyJwtToken(bearer[len("Bearer "):]) // Remove "Bearer "
+		token, err := VerifyJwtToken(bearer[len("Bearer "):])
 
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
