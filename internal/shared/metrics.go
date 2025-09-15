@@ -18,6 +18,8 @@ type AppMetrics struct {
 	todoOperations     *prometheus.CounterVec
 	userOperations     *prometheus.CounterVec
 	databaseOperations *prometheus.CounterVec
+	rateLimitHits      *prometheus.CounterVec
+	rateLimitAllowed   *prometheus.CounterVec
 }
 
 func NewAppMetrics(registry prometheus.Registerer) *AppMetrics {
@@ -82,6 +84,20 @@ func NewAppMetrics(registry prometheus.Registerer) *AppMetrics {
 			},
 			[]string{"operation", "table"},
 		),
+		rateLimitHits: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "rate_limit_hits_total",
+				Help: "Total number of rate limit hits",
+			},
+			[]string{"path", "key_type"},
+		),
+		rateLimitAllowed: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "rate_limit_allowed_total",
+				Help: "Total number of requests allowed by rate limiter",
+			},
+			[]string{"path", "key_type"},
+		),
 	}
 
 	registry.MustRegister(
@@ -94,6 +110,8 @@ func NewAppMetrics(registry prometheus.Registerer) *AppMetrics {
 		metrics.todoOperations,
 		metrics.userOperations,
 		metrics.databaseOperations,
+		metrics.rateLimitHits,
+		metrics.rateLimitAllowed,
 	)
 
 	return metrics
@@ -122,6 +140,14 @@ func (m *AppMetrics) RecordUserOperation(ctx context.Context, operation string) 
 
 func (m *AppMetrics) RecordDatabaseOperation(ctx context.Context, operation, table string) {
 	m.databaseOperations.WithLabelValues(operation, table).Inc()
+}
+
+func (m *AppMetrics) RecordRateLimitHit(ctx context.Context, path, keyType string) {
+	m.rateLimitHits.WithLabelValues(path, keyType).Inc()
+}
+
+func (m *AppMetrics) RecordRateLimitAllowed(ctx context.Context, path, keyType string) {
+	m.rateLimitAllowed.WithLabelValues(path, keyType).Inc()
 }
 
 func (m *AppMetrics) StartSystemMetrics(ctx context.Context) {

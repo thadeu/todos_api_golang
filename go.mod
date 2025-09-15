@@ -13,6 +13,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/onsi/gomega v1.38.2
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.20.5
 	github.com/rs/zerolog v1.34.0
 	github.com/simukti/sqldb-logger v0.0.0-20230108155151-646c1a075551

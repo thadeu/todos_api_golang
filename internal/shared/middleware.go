@@ -33,11 +33,25 @@ func MetricsMiddleware(metrics *AppMetrics) gin.HandlerFunc {
 }
 
 func SetupGinMiddleware(router *gin.Engine, serviceName string, metrics *AppMetrics, logger *LokiLogger) {
+	SetupGinMiddlewareWithConfig(router, serviceName, metrics, logger, GetDefaultConfig())
+}
+
+func SetupGinMiddlewareWithConfig(router *gin.Engine, serviceName string, metrics *AppMetrics, logger *LokiLogger, config *AppConfig) {
+	// HTTPS Enforcement (deve ser o primeiro)
+	httpsEnforcer := NewHTTPSEnforcer(logger.Logger.Logger)
+	router.Use(httpsEnforcer.HTTPSMiddleware())
+
 	// OpenTelemetry tracing middleware
 	router.Use(otelgin.Middleware(serviceName))
 
 	// Logging middleware
 	router.Use(LoggingMiddleware(logger))
+
+	// Rate Limiting middleware
+	if config.RateLimitEnabled {
+		rateLimiter := NewRateLimiter(logger.Logger.Logger, metrics)
+		router.Use(rateLimiter.RateLimitMiddleware())
+	}
 
 	// Custom metrics middleware
 	router.Use(MetricsMiddleware(metrics))

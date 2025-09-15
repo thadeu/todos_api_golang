@@ -42,7 +42,14 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		api.StartServer(metrics, logger)
+		// Configurar ambiente baseado em variáveis de ambiente
+		config := GetDefaultConfig()
+		if os.Getenv("GIN_MODE") == "release" {
+			config.Environment = "production"
+			config.EnforceHTTPS = true
+		}
+
+		api.StartServerWithConfig(metrics, logger, config)
 	}()
 
 	<-c

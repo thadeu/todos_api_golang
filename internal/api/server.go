@@ -13,6 +13,10 @@ import (
 )
 
 func StartServer(metrics *AppMetrics, logger *LokiLogger) {
+	StartServerWithConfig(metrics, logger, GetDefaultConfig())
+}
+
+func StartServerWithConfig(metrics *AppMetrics, logger *LokiLogger, config *AppConfig) {
 	db := InitDB()
 
 	user := NewUserRepository(db)
@@ -24,13 +28,13 @@ func StartServer(metrics *AppMetrics, logger *LokiLogger) {
 	todoHandler := NewTodoHandler(todoService, logger)
 	authHandler := NewAuthHandler(authService)
 
-	router := SetupRouter(HandlersConfig{
+	router := SetupRouterWithConfig(HandlersConfig{
 		AuthHandler: authHandler,
 		TodoHandler: todoHandler,
-	}, metrics, logger)
+	}, metrics, logger, config)
 
 	port := GetServerPort()
-	slog.Info("Server starting", "port", port)
+	slog.Info("Server starting", "port", port, "environment", config.Environment, "rate_limit_enabled", config.RateLimitEnabled, "https_enforced", config.EnforceHTTPS)
 
 	srv := &http.Server{
 		Addr:         ":" + port,
@@ -42,5 +46,4 @@ func StartServer(metrics *AppMetrics, logger *LokiLogger) {
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("Server failed to start", "error", err)
 	}
-
 }

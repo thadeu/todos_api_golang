@@ -13,14 +13,18 @@ type HandlersConfig struct {
 }
 
 func SetupRouter(handlers HandlersConfig, metrics *AppMetrics, logger *LokiLogger) *gin.Engine {
+	return SetupRouterWithConfig(handlers, metrics, logger, GetDefaultConfig())
+}
+
+func SetupRouterWithConfig(handlers HandlersConfig, metrics *AppMetrics, logger *LokiLogger, config *AppConfig) *gin.Engine {
 	if gin.Mode() == "" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.New()
 
-	// Setup OpenTelemetry, logging and metrics middleware
-	SetupGinMiddleware(router, "todoapp", metrics, logger)
+	// Setup OpenTelemetry, logging, rate limiting, HTTPS enforcement and metrics middleware
+	SetupGinMiddlewareWithConfig(router, "todoapp", metrics, logger, config)
 
 	router.Use(gin.Recovery())
 	router.Use(corsMiddleware())
