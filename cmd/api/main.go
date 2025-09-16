@@ -7,8 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	api "todoapp/internal/api"
-	. "todoapp/internal/shared"
+	api "todoapp/pkg/api"
+	. "todoapp/pkg/config"
+	. "todoapp/pkg/tracing"
 )
 
 func main() {
@@ -42,8 +43,8 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		// Configurar ambiente baseado em variáveis de ambiente
 		config := GetDefaultConfig()
+
 		if os.Getenv("GIN_MODE") == "release" {
 			config.Environment = "production"
 			config.EnforceHTTPS = true

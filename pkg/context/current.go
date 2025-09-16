@@ -73,26 +73,22 @@ func (c *Current) GetBool(key string) (bool, bool) {
 	return false, false
 }
 
-// Delete remove um valor do contexto atual
 func (c *Current) Delete(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.data, key)
 }
 
-// Clear remove todos os valores do contexto atual
 func (c *Current) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.data = make(map[string]interface{})
 }
 
-// All retorna todos os dados do contexto atual
 func (c *Current) All() map[string]interface{} {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	// Retorna uma cópia para evitar race conditions
 	result := make(map[string]interface{})
 	for k, v := range c.data {
 		result[k] = v
@@ -100,7 +96,6 @@ func (c *Current) All() map[string]interface{} {
 	return result
 }
 
-// Keys retorna todas as chaves do contexto atual
 func (c *Current) Keys() []string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -112,7 +107,6 @@ func (c *Current) Keys() []string {
 	return keys
 }
 
-// Exists verifica se uma chave existe
 func (c *Current) Exists(key string) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -120,23 +114,19 @@ func (c *Current) Exists(key string) bool {
 	return exists
 }
 
-// ContextKey é usado para armazenar o Current no context.Context
 type contextKey string
 
 const currentKey contextKey = "current"
 
-// WithCurrent adiciona o Current ao context.Context
 func WithCurrent(ctx context.Context, current *Current) context.Context {
 	return context.WithValue(ctx, currentKey, current)
 }
 
-// FromContext extrai o Current do context.Context
 func FromContext(ctx context.Context) (*Current, bool) {
 	current, ok := ctx.Value(currentKey).(*Current)
 	return current, ok
 }
 
-// GetCurrent retorna o Current do contexto ou cria um novo
 func GetCurrent(ctx context.Context) *Current {
 	if current, ok := FromContext(ctx); ok {
 		return current
@@ -145,19 +135,12 @@ func GetCurrent(ctx context.Context) *Current {
 	return NewCurrent()
 }
 
-// SetCurrent define o Current no contexto
 func SetCurrent(ctx context.Context, current *Current) context.Context {
 	return WithCurrent(ctx, current)
 }
 
-// =============================================================================
-// FUNÇÕES GLOBAIS - Estilo Rails CurrentAttributes
-// =============================================================================
-
-// Variável global para armazenar o Current da requisição atual
 var globalCurrent *Current
 
-// Set define um valor no contexto global (estilo Rails)
 func Set(key string, value interface{}) {
 	if globalCurrent == nil {
 		globalCurrent = NewCurrent()
@@ -165,7 +148,6 @@ func Set(key string, value interface{}) {
 	globalCurrent.Set(key, value)
 }
 
-// Get retorna um valor do contexto global (estilo Rails)
 func Get(key string) interface{} {
 	if globalCurrent == nil {
 		return nil
@@ -173,7 +155,6 @@ func Get(key string) interface{} {
 	return globalCurrent.Get(key)
 }
 
-// GetString retorna um valor como string (estilo Rails)
 func GetString(key string) (string, bool) {
 	if globalCurrent == nil {
 		return "", false
@@ -181,7 +162,6 @@ func GetString(key string) (string, bool) {
 	return globalCurrent.GetString(key)
 }
 
-// GetInt retorna um valor como int (estilo Rails)
 func GetInt(key string) (int, bool) {
 	if globalCurrent == nil {
 		return 0, false
@@ -189,7 +169,6 @@ func GetInt(key string) (int, bool) {
 	return globalCurrent.GetInt(key)
 }
 
-// GetFloat64 retorna um valor como float64 (estilo Rails)
 func GetFloat64(key string) (float64, bool) {
 	if globalCurrent == nil {
 		return 0, false
@@ -197,7 +176,6 @@ func GetFloat64(key string) (float64, bool) {
 	return globalCurrent.GetFloat64(key)
 }
 
-// GetBool retorna um valor como bool (estilo Rails)
 func GetBool(key string) (bool, bool) {
 	if globalCurrent == nil {
 		return false, false
@@ -205,21 +183,18 @@ func GetBool(key string) (bool, bool) {
 	return globalCurrent.GetBool(key)
 }
 
-// Delete remove um valor do contexto global (estilo Rails)
 func Delete(key string) {
 	if globalCurrent != nil {
 		globalCurrent.Delete(key)
 	}
 }
 
-// Clear remove todos os valores do contexto global (estilo Rails)
 func Clear() {
 	if globalCurrent != nil {
 		globalCurrent.Clear()
 	}
 }
 
-// Exists verifica se uma chave existe no contexto global (estilo Rails)
 func Exists(key string) bool {
 	if globalCurrent == nil {
 		return false
@@ -227,7 +202,6 @@ func Exists(key string) bool {
 	return globalCurrent.Exists(key)
 }
 
-// All retorna todos os dados do contexto global (estilo Rails)
 func All() map[string]interface{} {
 	if globalCurrent == nil {
 		return make(map[string]interface{})
@@ -235,7 +209,6 @@ func All() map[string]interface{} {
 	return globalCurrent.All()
 }
 
-// Keys retorna todas as chaves do contexto global (estilo Rails)
 func Keys() []string {
 	if globalCurrent == nil {
 		return []string{}
@@ -243,12 +216,10 @@ func Keys() []string {
 	return globalCurrent.Keys()
 }
 
-// SetGlobalCurrent define o Current global (usado pelos middlewares)
 func SetGlobalCurrent(current *Current) {
 	globalCurrent = current
 }
 
-// GetGlobalCurrent retorna o Current global
 func GetGlobalCurrent() *Current {
 	if globalCurrent == nil {
 		globalCurrent = NewCurrent()
@@ -256,7 +227,6 @@ func GetGlobalCurrent() *Current {
 	return globalCurrent
 }
 
-// ResetGlobalCurrent limpa o Current global (usado para limpeza entre requisições)
 func ResetGlobalCurrent() {
 	globalCurrent = nil
 }
