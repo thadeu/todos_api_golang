@@ -3,6 +3,9 @@ package test
 import (
 	"database/sql"
 	"log"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -12,6 +15,31 @@ import (
 type TestSetup[T any] struct {
 	DB   *sql.DB
 	Repo *T
+}
+
+// findProjectRoot finds the project root directory by looking for go.mod
+func findProjectRoot() string {
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+
+	// Fallback to current working directory
+	if wd, err := os.Getwd(); err == nil {
+		return wd
+	}
+
+	log.Fatal("Could not find project root directory")
+	return ""
 }
 
 func InitTestDB() *sql.DB {
@@ -29,7 +57,9 @@ func InitTestDB() *sql.DB {
 	}
 
 	// Run migrations for test database
-	RunMigrations(db, "../../db/migrations")
+	projectRoot := findProjectRoot()
+	migrationsPath := filepath.Join(projectRoot, "db", "migrations")
+	RunMigrations(db, migrationsPath)
 
 	return db
 }

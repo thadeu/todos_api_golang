@@ -1,4 +1,4 @@
-package api
+package routes
 
 import (
 	"todoapp/internal/delivery/http/handler"
@@ -26,7 +26,8 @@ func SetupRouterWithConfig(handlers HandlersConfig, metrics *AppMetrics, logger 
 
 	router := gin.New()
 
-	// Setup middleware
+	middleware.SetupGinMiddlewareWithConfig(router, "todoapp", metrics, logger, config)
+
 	router.Use(gin.Recovery())
 	router.Use(corsMiddleware())
 

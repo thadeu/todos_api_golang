@@ -1,4 +1,4 @@
-package todo
+package handler
 
 import (
 	"log/slog"
@@ -12,17 +12,36 @@ import (
 	. "todoapp/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
+
+	"todoapp/internal/usecase/interfaces"
 )
 
-type TodoHandler struct {
-	Service *TodoService
-	Logger  *LokiLogger
+// TodoResponse represents the response structure for todo data
+type TodoResponse struct {
+	UUID        uuid.UUID `json:"uuid"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Status      string    `json:"status"`
+	Completed   bool      `json:"completed"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-func NewTodoHandler(service *TodoService, logger *LokiLogger) *TodoHandler {
-	return &TodoHandler{Service: service, Logger: logger}
+// TodoHandler handles HTTP requests for todo operations
+type TodoHandler struct {
+	todoUseCase interfaces.TodoUseCase
+	Logger      *LokiLogger
+}
+
+// NewTodoHandler creates a new todo handler
+func NewTodoHandler(todoUseCase interfaces.TodoUseCase, logger *LokiLogger) *TodoHandler {
+	return &TodoHandler{
+		todoUseCase: todoUseCase,
+		Logger:      logger,
+	}
 }
 
 func (t *TodoHandler) GetAllTodos(c *gin.Context) {
@@ -48,7 +67,7 @@ func (t *TodoHandler) GetAllTodos(c *gin.Context) {
 		attribute.Int("todo.limit", limit),
 	)
 
-	data, err := t.Service.GetTodosWithPagination(ctx, userId, limit, cursor)
+	data, err := t.todoUseCase.GetTodosWithPagination(ctx, userId, limit, cursor)
 
 	if err != nil {
 		AddSpanError(span, err)
@@ -58,7 +77,7 @@ func (t *TodoHandler) GetAllTodos(c *gin.Context) {
 			zap.Int("user_id", userId),
 		)
 
-		SendInternalError(c, "Erro ao buscar todos")
+		SendInternalError(c, "Error getting todos")
 		return
 	}
 
@@ -75,10 +94,10 @@ func (t *TodoHandler) CreateTodo(c *gin.Context) {
 
 	userId := c.GetInt("x-user-id")
 	ctx := c.Request.Context()
-	todo, err := t.Service.CreateTodo(ctx, c, userId)
+	todo, err := t.todoUseCase.CreateTodo(ctx, c, userId)
 
 	if err != nil {
-		slog.Error("Erro ao criar todo", "error", err)
+		slog.Error("Error creating todo", "error", err)
 
 		if validationErrors := FormatValidationErrors(err); len(validationErrors) > 0 {
 			SendValidationError(c, err)
@@ -93,7 +112,7 @@ func (t *TodoHandler) CreateTodo(c *gin.Context) {
 		UUID:        todo.UUID,
 		Title:       todo.Title,
 		Description: todo.Description,
-		Status:      t.Service.StatusOrFallback(todo),
+		Status:      getStatusString(todo.Status),
 		Completed:   todo.Completed,
 		CreatedAt:   todo.CreatedAt,
 		UpdatedAt:   todo.UpdatedAt,
@@ -102,13 +121,13 @@ func (t *TodoHandler) CreateTodo(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"data": response})
 
 	endTime := time.Now()
-	slog.Info("Todo criado", "time", endTime.Sub(startTime))
+	slog.Info("Todo created", "time", endTime.Sub(startTime))
 }
 
 func (t *TodoHandler) UpdateTodo(c *gin.Context) {
 	userId := c.GetInt("x-user-id")
 	ctx := c.Request.Context()
-	todo, err := t.Service.UpdateTodoByUUID(ctx, c, userId)
+	todo, err := t.todoUseCase.UpdateTodoByUUID(ctx, c, userId)
 
 	if err != nil {
 		if validationErrors := FormatValidationErrors(err); len(validationErrors) > 0 {
@@ -124,7 +143,7 @@ func (t *TodoHandler) UpdateTodo(c *gin.Context) {
 		UUID:        todo.UUID,
 		Title:       todo.Title,
 		Description: todo.Description,
-		Status:      t.Service.StatusOrFallback(todo),
+		Status:      getStatusString(todo.Status),
 		Completed:   todo.Completed,
 		CreatedAt:   todo.CreatedAt,
 		UpdatedAt:   todo.UpdatedAt,
@@ -136,7 +155,7 @@ func (t *TodoHandler) UpdateTodo(c *gin.Context) {
 func (t *TodoHandler) DeleteByUUID(c *gin.Context) {
 	userId := c.GetInt("x-user-id")
 	ctx := c.Request.Context()
-	_, err := t.Service.DeleteByUUID(ctx, c, userId)
+	_, err := t.todoUseCase.DeleteByUUID(ctx, c, userId)
 
 	if err != nil {
 		SendNotFoundError(c, err.Error())
@@ -144,6 +163,22 @@ func (t *TodoHandler) DeleteByUUID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Todo deletado com sucesso",
+		"message": "Todo deleted successfully",
 	})
+}
+
+// getStatusString converts status int to string
+func getStatusString(status int) string {
+	switch status {
+	case 0:
+		return "pending"
+	case 1:
+		return "in_progress"
+	case 2:
+		return "in_review"
+	case 3:
+		return "completed"
+	default:
+		return "unknown"
+	}
 }

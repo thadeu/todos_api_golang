@@ -5,9 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	. "todoapp/internal/auth"
-	. "todoapp/internal/todo"
-	. "todoapp/internal/user"
+	"todoapp/internal/delivery/http/routes"
+	"todoapp/internal/infrastructure"
 	. "todoapp/pkg"
 	. "todoapp/pkg/config"
 	. "todoapp/pkg/db"
@@ -21,18 +20,12 @@ func StartServer(metrics *AppMetrics, logger *LokiLogger) {
 func StartServerWithConfig(metrics *AppMetrics, logger *LokiLogger, config *AppConfig) {
 	db := InitDB()
 
-	user := NewUserRepository(db)
-	todo := NewTodoRepository(db)
+	// Initialize dependency container with Clean Architecture
+	container := infrastructure.NewContainer(db, logger)
 
-	todoService := NewTodoService(todo)
-	authService := NewAuthService(user)
-
-	todoHandler := NewTodoHandler(todoService, logger)
-	authHandler := NewAuthHandler(authService)
-
-	router := SetupRouterWithConfig(HandlersConfig{
-		AuthHandler: authHandler,
-		TodoHandler: todoHandler,
+	router := routes.SetupRouterWithConfig(routes.HandlersConfig{
+		AuthHandler: container.AuthHandler,
+		TodoHandler: container.TodoHandler,
 	}, metrics, logger, config)
 
 	port := GetServerPort()

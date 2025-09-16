@@ -1,7 +1,8 @@
-package todo_test
+package handler
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,20 +17,25 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/suite"
 
-	. "todoapp/internal/todo"
-	. "todoapp/internal/user"
+	"todoapp/internal/delivery/http/middleware"
+	"todoapp/internal/domain/entities"
+	"todoapp/internal/domain/repositories"
+	"todoapp/internal/infrastructure/persistence"
+	"todoapp/internal/todo"
+	"todoapp/internal/usecase/impl"
+	"todoapp/internal/user"
 	. "todoapp/pkg/auth"
 	. "todoapp/pkg/test"
 
-	api "todoapp/pkg/api"
 	c "todoapp/pkg/db/cursor"
 )
 
 type TodoHandlerSuite struct {
 	suite.Suite
-	UserRepo *UserRepository
+	UserRepo repositories.UserRepository
+	TodoRepo repositories.TodoRepository
 	Router   *gin.Engine
-	setup    *TestSetup[TodoRepository]
+	DB       *sql.DB
 }
 
 var globalTodoHandler *TodoHandler
@@ -40,19 +46,22 @@ func (s *TodoHandlerSuite) SetupSuite() {
 }
 
 func (s *TodoHandlerSuite) SetupTest() {
-	db := InitTestDB()
-	repo := NewTodoRepository(db)
-	s.setup = SetupTest(s.T(), repo)
-	s.UserRepo = NewUserRepository(db)
-	globalTodoHandler.Service = NewTodoService(s.setup.Repo)
+	s.DB = InitTestDB()
+	s.TodoRepo = persistence.NewTodoRepository(s.DB)
+	s.UserRepo = persistence.NewUserRepository(s.DB)
 
-	s.Router = api.SetupRouterForTests(api.HandlersConfig{
-		TodoHandler: globalTodoHandler,
-	})
+	// Create use case and handler
+	todoUseCase := impl.NewTodoUseCase(s.TodoRepo)
+	globalTodoHandler = NewTodoHandler(todoUseCase, nil)
+
+	// Setup router directly to avoid import cycle
+	s.Router = setupTodoTestRouter(globalTodoHandler)
 }
 
 func (s *TodoHandlerSuite) TearDownTest() {
-	TeardownTest(s.T(), s.setup)
+	if s.DB != nil {
+		s.DB.Close()
+	}
 }
 
 func TestTodoHandlerSuite(t *testing.T) {
@@ -60,8 +69,29 @@ func TestTodoHandlerSuite(t *testing.T) {
 	suite.Run(t, new(TodoHandlerSuite))
 }
 
-func CreateUser(s *TodoHandlerSuite) User {
-	user, _ := s.UserRepo.CreateUser(ctx, NewUser[User](map[string]any{
+func setupTodoTestRouter(todoHandler *TodoHandler) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
+
+	// Protected routes
+	protected := router.Group("/")
+	protected.Use(middleware.CurrentMiddleware())
+	protected.Use(GinJwtMiddleware())
+	{
+		protected.GET("/todos", todoHandler.GetAllTodos)
+		protected.POST("/todos", todoHandler.CreateTodo)
+		protected.PUT("/todo/:uuid", todoHandler.UpdateTodo)
+		protected.DELETE("/todos/:uuid", todoHandler.DeleteByUUID)
+	}
+
+	return router
+}
+
+func CreateUser(s *TodoHandlerSuite) entities.User {
+	user, _ := s.UserRepo.CreateUser(ctx, user.NewUser[entities.User](map[string]any{
 		"Name":              "User99",
 		"Email":             "user99@example.com",
 		"EncryptedPassword": "12345678",
@@ -70,8 +100,8 @@ func CreateUser(s *TodoHandlerSuite) User {
 	return user
 }
 
-func CreateTodo(s *TodoHandlerSuite, userId int) Todo {
-	data, _ := s.setup.Repo.Create(ctx, NewTodo[Todo](map[string]any{
+func CreateTodo(s *TodoHandlerSuite, userId int) entities.Todo {
+	data, _ := s.TodoRepo.Create(ctx, todo.NewTodo[entities.Todo](map[string]any{
 		"Title":  "Task Created",
 		"UserId": userId,
 	}))
@@ -82,9 +112,9 @@ func CreateTodo(s *TodoHandlerSuite, userId int) Todo {
 func (s *TodoHandlerSuite) TestGetAllTodosWithData() {
 	user := CreateUser(s)
 
-	s.setup.Repo.Create(ctx, NewTodo[Todo](map[string]any{
+	s.TodoRepo.Create(ctx, todo.NewTodo[entities.Todo](map[string]any{
 		"Title":  "99",
-		"Status": int(TodoStatusPending),
+		"Status": int(entities.TodoStatusPending),
 		"UserId": user.ID,
 	}))
 
@@ -126,7 +156,6 @@ func (s *TodoHandlerSuite) TestCreateTodo() {
 	jwtToken, _ := CreateJwtTokenForUser(user.ID)
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	// http.DefaultServeMux.ServeHTTP(rr, req)
 	s.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusCreated))
@@ -213,7 +242,7 @@ func (s *TodoHandlerSuite) TestUpdateTodoToCompleted() {
 func (s *TodoHandlerSuite) TestDeleteByUUIDWhenIdExists() {
 	user := CreateUser(s)
 
-	todo, _ := s.setup.Repo.Create(ctx, NewTodo[Todo](map[string]any{
+	todo, _ := s.TodoRepo.Create(ctx, todo.NewTodo[entities.Todo](map[string]any{
 		"Title":  "User",
 		"UserId": user.ID,
 	}))
@@ -235,7 +264,7 @@ func (s *TodoHandlerSuite) TestDeleteByUUIDWhenIdExists() {
 	data := gin.H{}
 	json.Unmarshal(body, &data)
 
-	Expect(data["message"]).To(Equal("Todo deletado com sucesso"))
+	Expect(data["message"]).To(Equal("Todo deleted successfully"))
 }
 
 func (s *TodoHandlerSuite) TestCreateTodoWithDifferentStatuses() {
@@ -250,7 +279,6 @@ func (s *TodoHandlerSuite) TestCreateTodoWithDifferentStatuses() {
 	jwtToken, _ := CreateJwtTokenForUser(user.ID)
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	// http.DefaultServeMux.ServeHTTP(rr, req)
 	s.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusCreated))
@@ -280,7 +308,6 @@ func (s *TodoHandlerSuite) TestCreateTodoWithInvalidStatus() {
 	jwtToken, _ := CreateJwtTokenForUser(user.ID)
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	// http.DefaultServeMux.ServeHTTP(rr, req)
 	s.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusBadRequest))
@@ -297,7 +324,6 @@ func (s *TodoHandlerSuite) TestDeleteTodoWithSuccess() {
 	jwtToken, _ := CreateJwtTokenForUser(user.ID)
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	// http.DefaultServeMux.ServeHTTP(rr, req)
 	s.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusOK))
@@ -309,9 +335,9 @@ func (s *TodoHandlerSuite) TestPaginationWithCursor() {
 	baseTime := time.Now()
 
 	for i := 1; i <= 5; i++ {
-		s.setup.Repo.Create(ctx, NewTodo[Todo](map[string]any{
+		s.TodoRepo.Create(ctx, todo.NewTodo[entities.Todo](map[string]any{
 			"Title":     fmt.Sprintf("Task %d", i),
-			"Status":    int(TodoStatusPending),
+			"Status":    int(entities.TodoStatusPending),
 			"UserId":    user.ID,
 			"CreatedAt": baseTime.Add(time.Duration(i) * time.Minute), // Task 5 is newest
 		}))
@@ -324,7 +350,6 @@ func (s *TodoHandlerSuite) TestPaginationWithCursor() {
 	jwtToken, _ := CreateJwtTokenForUser(user.ID)
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	// http.DefaultServeMux.ServeHTTP(rr, req)
 	s.Router.ServeHTTP(rr, req)
 
 	Expect(rr.Code).To(Equal(http.StatusOK))
@@ -350,7 +375,6 @@ func (s *TodoHandlerSuite) TestPaginationWithCursor() {
 	req2, _ := http.NewRequest("GET", fmt.Sprintf("/todos?limit=2&cursor=%s", encodedCursor), nil)
 	req2.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	// http.DefaultServeMux.ServeHTTP(rr2, req2)
 	s.Router.ServeHTTP(rr2, req2)
 
 	Expect(rr2.Code).To(Equal(http.StatusOK))
@@ -377,7 +401,6 @@ func (s *TodoHandlerSuite) TestPaginationWithCursor() {
 	req3, _ := http.NewRequest("GET", fmt.Sprintf("/todos?limit=2&cursor=%s", encodedCursor2), nil)
 	req3.Header.Set("Authorization", "Bearer "+jwtToken)
 
-	// http.DefaultServeMux.ServeHTTP(rr3, req3)
 	s.Router.ServeHTTP(rr3, req3)
 
 	Expect(rr3.Code).To(Equal(http.StatusOK))

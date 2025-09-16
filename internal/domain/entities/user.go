@@ -1,4 +1,4 @@
-package user
+package entities
 
 import (
 	"time"
@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// User represents a user entity in the domain
 type User struct {
 	ID                int
 	UUID              uuid.UUID
@@ -15,4 +16,9 @@ type User struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	DeletedAt         *time.Time
+}
+
+// IsDeleted checks if the user is marked as deleted
+func (u *User) IsDeleted() bool {
+	return u.DeletedAt != nil
 }
