@@ -29,6 +29,7 @@ func StartServerWithConfig(metrics *AppMetrics, logger *LokiLogger, config *AppC
 	}, metrics, logger, config)
 
 	port := GetServerPort()
+
 	slog.Info("Server starting",
 		"port", port,
 		"environment", config.Environment,

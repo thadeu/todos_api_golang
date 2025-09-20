@@ -3,7 +3,7 @@ package api
 import (
 	"todoapp/internal/delivery/http/handler"
 	"todoapp/internal/delivery/http/middleware"
-	. "todoapp/pkg/auth"
+
 	. "todoapp/pkg/config"
 	. "todoapp/pkg/tracing"
 
@@ -52,7 +52,7 @@ func setupPublicRoutes(router *gin.Engine, authHandler *handler.AuthHandler) {
 func setupProtectedRoutes(router *gin.Engine, todoHandler *handler.TodoHandler) {
 	protected := router.Group("/")
 	protected.Use(middleware.CurrentMiddleware())
-	protected.Use(GinJwtMiddleware())
+	protected.Use(middleware.GinJwtMiddleware())
 	{
 		protected.GET("/todos", todoHandler.GetAllTodos)
 		protected.POST("/todos", todoHandler.CreateTodo)

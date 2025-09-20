@@ -1,16 +1,11 @@
 package auth
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
-	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -55,70 +50,4 @@ func CreateJwtTokenForUser(userId int) (string, error) {
 func VerifyJwtToken(token string) (jwt.MapClaims, error) {
 	jwt := JWT{Secret: os.Getenv("JWT_SECRET")}
 	return jwt.VerifyToken(token)
-}
-
-func JwtAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		bearer := r.Header.Get("Authorization")
-
-		if bearer == "" {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]any{"errors": []string{"Unauthorized request"}})
-			return
-		}
-
-		token, err := VerifyJwtToken(bearer[len("Bearer "):])
-
-		if err != nil {
-			slog.Info("Error", "error", err)
-
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]any{"errors": []string{"Unauthorized request", err.Error()}})
-			return
-		}
-
-		userId := int(token["user_id"].(float64))
-		context := context.WithValue(r.Context(), "x-user-id", userId)
-
-		next.ServeHTTP(w, r.WithContext(context))
-	}
-}
-
-func GinJwtMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		bearer := c.GetHeader("Authorization")
-
-		if bearer == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"errors": []string{"Unauthorized request"},
-			})
-
-			c.Abort()
-			return
-		}
-
-		if !strings.HasPrefix(bearer, "Bearer ") {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"errors": []string{"Invalid authorization format"},
-			})
-
-			c.Abort()
-			return
-		}
-
-		token, err := VerifyJwtToken(bearer[len("Bearer "):])
-
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"errors": []string{"Unauthorized request", err.Error()},
-			})
-			c.Abort()
-			return
-		}
-
-		userId := int(token["user_id"].(float64))
-
-		c.Set("x-user-id", userId)
-		c.Next()
-	}
 }

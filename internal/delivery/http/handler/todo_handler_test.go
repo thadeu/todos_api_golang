@@ -21,11 +21,10 @@ import (
 	"todoapp/internal/domain/entities"
 	"todoapp/internal/domain/repositories"
 	"todoapp/internal/infrastructure/persistence"
-	"todoapp/internal/todo"
 	"todoapp/internal/usecase/impl"
-	"todoapp/internal/user"
 	. "todoapp/pkg/auth"
 	. "todoapp/pkg/test"
+	factory "todoapp/pkg/test/factory"
 
 	c "todoapp/pkg/db/cursor"
 )
@@ -79,7 +78,7 @@ func setupTodoTestRouter(todoHandler *TodoHandler) *gin.Engine {
 	// Protected routes
 	protected := router.Group("/")
 	protected.Use(middleware.CurrentMiddleware())
-	protected.Use(GinJwtMiddleware())
+	protected.Use(middleware.GinJwtMiddleware())
 	{
 		protected.GET("/todos", todoHandler.GetAllTodos)
 		protected.POST("/todos", todoHandler.CreateTodo)
@@ -91,7 +90,7 @@ func setupTodoTestRouter(todoHandler *TodoHandler) *gin.Engine {
 }
 
 func CreateUser(s *TodoHandlerSuite) entities.User {
-	user, _ := s.UserRepo.CreateUser(ctx, user.NewUser[entities.User](map[string]any{
+	user, _ := s.UserRepo.CreateUser(ctx, factory.NewUser[entities.User](map[string]any{
 		"Name":              "User99",
 		"Email":             "user99@example.com",
 		"EncryptedPassword": "12345678",
@@ -101,7 +100,7 @@ func CreateUser(s *TodoHandlerSuite) entities.User {
 }
 
 func CreateTodo(s *TodoHandlerSuite, userId int) entities.Todo {
-	data, _ := s.TodoRepo.Create(ctx, todo.NewTodo[entities.Todo](map[string]any{
+	data, _ := s.TodoRepo.Create(ctx, factory.NewTodo[entities.Todo](map[string]any{
 		"Title":  "Task Created",
 		"UserId": userId,
 	}))
@@ -112,7 +111,7 @@ func CreateTodo(s *TodoHandlerSuite, userId int) entities.Todo {
 func (s *TodoHandlerSuite) TestGetAllTodosWithData() {
 	user := CreateUser(s)
 
-	s.TodoRepo.Create(ctx, todo.NewTodo[entities.Todo](map[string]any{
+	s.TodoRepo.Create(ctx, factory.NewTodo[entities.Todo](map[string]any{
 		"Title":  "99",
 		"Status": int(entities.TodoStatusPending),
 		"UserId": user.ID,
@@ -242,7 +241,7 @@ func (s *TodoHandlerSuite) TestUpdateTodoToCompleted() {
 func (s *TodoHandlerSuite) TestDeleteByUUIDWhenIdExists() {
 	user := CreateUser(s)
 
-	todo, _ := s.TodoRepo.Create(ctx, todo.NewTodo[entities.Todo](map[string]any{
+	todo, _ := s.TodoRepo.Create(ctx, factory.NewTodo[entities.Todo](map[string]any{
 		"Title":  "User",
 		"UserId": user.ID,
 	}))
@@ -335,7 +334,7 @@ func (s *TodoHandlerSuite) TestPaginationWithCursor() {
 	baseTime := time.Now()
 
 	for i := 1; i <= 5; i++ {
-		s.TodoRepo.Create(ctx, todo.NewTodo[entities.Todo](map[string]any{
+		s.TodoRepo.Create(ctx, factory.NewTodo[entities.Todo](map[string]any{
 			"Title":     fmt.Sprintf("Task %d", i),
 			"Status":    int(entities.TodoStatusPending),
 			"UserId":    user.ID,

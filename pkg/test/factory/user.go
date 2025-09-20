@@ -1,4 +1,4 @@
-package user
+package factory
 
 import (
 	fab "github.com/Goldziher/fabricator"

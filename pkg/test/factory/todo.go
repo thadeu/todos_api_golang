@@ -1,4 +1,4 @@
-package todo
+package factory
 
 import (
 	fab "github.com/Goldziher/fabricator"
