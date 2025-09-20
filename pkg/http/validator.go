@@ -37,6 +37,7 @@ func init() {
 func addCustomTranslations() {
 	Validator.RegisterTranslation("required", Translator, func(ut ut.Translator) error {
 		return ut.Add("required", "{0} é obrigatório", true)
+
 	}, func(ut ut.Translator, fe validator.FieldError) string {
 		t, _ := ut.T("required", getFieldName(fe.Field()))
 		return t

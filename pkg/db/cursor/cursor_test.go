@@ -18,6 +18,7 @@ func TestEncodeDecodeCursor(t *testing.T) {
 
 	// Decode
 	decodedDate, decodedID, err := DecodeCursor(encoded)
+
 	if err != nil {
 		t.Fatalf("Failed to decode cursor: %v", err)
 	}
@@ -26,6 +27,7 @@ func TestEncodeDecodeCursor(t *testing.T) {
 	if decodedDate != testDate {
 		t.Errorf("Expected date %s, got %s", testDate, decodedDate)
 	}
+
 	if decodedID != testID {
 		t.Errorf("Expected ID %d, got %d", testID, decodedID)
 	}
@@ -38,6 +40,7 @@ func TestDecodeInvalidCursor(t *testing.T) {
 
 	// Test invalid format
 	_, _, err := DecodeCursor("invalid-cursor")
+
 	if err == nil {
 		t.Error("Expected error for invalid cursor format")
 	}
@@ -45,6 +48,7 @@ func TestDecodeInvalidCursor(t *testing.T) {
 	// Test invalid signature
 	invalidCursor := "eyJkYXRldGltZSI6IjIwMjUtMDktMTJUMTA6Mzc6NTItMDM6MDAifQ==.invalid-signature"
 	_, _, err = DecodeCursor(invalidCursor)
+
 	if err == nil {
 		t.Error("Expected error for invalid signature")
 	}
