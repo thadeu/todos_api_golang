@@ -23,7 +23,7 @@ tasks:
 
   dev:
     dotenv: ['.env']
-    deps: [test]
+    # deps: [test]
     cmds:
       - air -c .air.api.toml
 

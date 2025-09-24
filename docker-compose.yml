@@ -7,7 +7,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -32,8 +32,8 @@ services:
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./infra/monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./infra/monitoring/grafana/dashboards:/var/lib/grafana/dashboards
     restart: unless-stopped
     networks:
       - monitoring
@@ -47,7 +47,7 @@ services:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml
+      - ./infra/monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml
       - loki_data:/loki
     restart: unless-stopped
     networks:
@@ -63,7 +63,7 @@ services:
       - "4318:4318"    # OTLP HTTP
     command: [ "-config.file=/etc/tempo.yaml" ]
     volumes:
-      - ./monitoring/tempo/tempo-config.yml:/etc/tempo.yaml
+      - ./infra/monitoring/tempo/tempo-config.yml:/etc/tempo.yaml
       - tempo_data:/var/tempo
     restart: unless-stopped
     networks:
@@ -82,7 +82,23 @@ services:
     networks:
       - monitoring
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: todoapp-pg
+    environment:
+      - POSTGRES_DB=todoapp
+      - POSTGRES_USER=todoapp
+      - POSTGRES_PASSWORD=todoapp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - monitoring
+
 volumes:
+  todoapp_pg_data:
   prometheus_data:
   grafana_data:
   loki_data:

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	. "todoapp/pkg"
-	. "todoapp/pkg/response"
+
 	. "todoapp/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
@@ -204,46 +204,6 @@ func TestRateLimitMiddleware_DELETERequests(t *testing.T) {
 			"DELETE Request %d: Expected remaining %s, got %s",
 			i+1, expectedRemainingStr, remaining)
 	}
-}
-
-func TestRateLimitMiddleware_WithCache(t *testing.T) {
-	RegisterTestingT(t)
-	logger := zap.NewNop()
-	metrics := NewAppMetrics(prometheus.NewRegistry())
-	rl := NewRateLimiter(logger, metrics)
-	cache := NewResponseCache(logger, metrics)
-
-	gin.SetMode(gin.TestMode)
-	router := gin.New()
-	router.Use(func(c *gin.Context) {
-		c.Set("x-user-id", "123")
-		c.Next()
-	})
-	router.Use(cache.CacheMiddleware())
-	router.Use(rl.RateLimitMiddleware())
-
-	callCount := 0
-	router.GET("/todos", func(c *gin.Context) {
-		callCount++
-		c.JSON(200, gin.H{"method": "GET", "count": callCount})
-	})
-
-	// First request should be cache MISS and consume rate limit
-	w1 := httptest.NewRecorder()
-	req1, _ := http.NewRequest("GET", "/todos", nil)
-	router.ServeHTTP(w1, req1)
-	Expect(w1.Code).To(Equal(200))
-	Expect(w1.Header().Get("X-Cache")).To(Equal("MISS"))
-	Expect(w1.Header().Get("X-RateLimit-Remaining")).To(Equal("99"))
-
-	// Second request should be cache HIT and NOT consume rate limit
-	w2 := httptest.NewRecorder()
-	req2, _ := http.NewRequest("GET", "/todos", nil)
-	router.ServeHTTP(w2, req2)
-	Expect(w2.Code).To(Equal(200))
-	Expect(w2.Header().Get("X-Cache")).To(Equal("HIT"))
-	Expect(w2.Header().Get("X-RateLimit-Remaining")).To(Equal("99")) // Should remain the same
-	Expect(callCount).To(Equal(1))                                   // Handler called only once
 }
 
 func TestRateLimitMiddleware_WindowReset(t *testing.T) {

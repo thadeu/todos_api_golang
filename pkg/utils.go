@@ -1,21 +1,14 @@
 package pkg
 
 import (
+	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
-
-func GetServerPort() string {
-	port := os.Getenv("PORT")
-
-	if port == "" {
-		port = "8080"
-	}
-
-	return port
-}
 
 func GetClientIP(c *gin.Context) string {
 	if ip := c.GetHeader("X-Forwarded-For"); ip != "" {
@@ -35,4 +28,27 @@ func GetClientIP(c *gin.Context) string {
 	}
 
 	return ip
+}
+
+func FindProjectRoot() string {
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+
+	if wd, err := os.Getwd(); err == nil {
+		return wd
+	}
+
+	log.Fatal("Could not find project root directory")
+	return ""
 }
