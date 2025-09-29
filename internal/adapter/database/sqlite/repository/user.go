@@ -66,7 +66,7 @@ func (ur *UserRepository) GetByUUID(ctx context.Context, uid string) (domain.Use
 }
 
 func (ur *UserRepository) GetByEmail(ctx context.Context, email string) (domain.User, error) {
-	query := ur.db.QueryBuilder.Select("id", "uuid", "name", "email", "encrypted_password", "created_at", "updated_at").
+	query := ur.db.QueryBuilder.Select("*").
 		From("users").
 		Where(sq.Eq{"email": email}).
 		Limit(1)
