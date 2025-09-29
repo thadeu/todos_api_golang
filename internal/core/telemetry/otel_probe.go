@@ -14,6 +14,7 @@ import (
 	"todoapp/internal/core/port"
 )
 
+// OTELProbe implements Telemetry using OpenTelemetry
 type OTELProbe struct {
 	logger *slog.Logger
 }
@@ -24,23 +25,90 @@ func NewOTELProbe(logger *slog.Logger) port.Telemetry {
 	}
 }
 
-func (p *OTELProbe) StartRepositorySpan(ctx context.Context, operation string, entity string, attrs []attribute.KeyValue) (context.Context, trace.Span) {
+// OTelSpan wraps OpenTelemetry span to implement our generic Span interface
+type OTelSpan struct {
+	span trace.Span
+}
+
+func (s *OTelSpan) End() {
+	s.span.End()
+}
+
+func (s *OTelSpan) SetAttributes(attrs map[string]interface{}) {
+	var otelAttrs []attribute.KeyValue
+	for key, value := range attrs {
+		switch v := value.(type) {
+		case string:
+			otelAttrs = append(otelAttrs, attribute.String(key, v))
+		case int:
+			otelAttrs = append(otelAttrs, attribute.Int(key, v))
+		case int64:
+			otelAttrs = append(otelAttrs, attribute.Int64(key, v))
+		case float64:
+			otelAttrs = append(otelAttrs, attribute.Float64(key, v))
+		case bool:
+			otelAttrs = append(otelAttrs, attribute.Bool(key, v))
+		default:
+			otelAttrs = append(otelAttrs, attribute.String(key, fmt.Sprintf("%v", v)))
+		}
+	}
+	s.span.SetAttributes(otelAttrs...)
+}
+
+func (s *OTelSpan) SetStatus(code string, message string) {
+	var statusCode codes.Code
+	switch code {
+	case "ok":
+		statusCode = codes.Ok
+	case "error":
+		statusCode = codes.Error
+	default:
+		statusCode = codes.Unset
+	}
+	s.span.SetStatus(statusCode, message)
+}
+
+func (s *OTelSpan) RecordError(err error) {
+	s.span.RecordError(err)
+}
+
+// Tracing methods
+func (p *OTELProbe) StartRepositorySpan(ctx context.Context, operation string, entity string, attrs map[string]interface{}) (context.Context, port.Span) {
 	spanName := fmt.Sprintf("repository.%s.%s", entity, operation)
 
+	// Add standard repository attributes
 	standardAttrs := []attribute.KeyValue{
 		attribute.String("repository.entity", entity),
 		attribute.String("repository.operation", operation),
 		attribute.String("component", "repository"),
 	}
 
-	allAttrs := append(standardAttrs, attrs...)
+	// Convert map attrs to OpenTelemetry attributes
+	for key, value := range attrs {
+		switch v := value.(type) {
+		case string:
+			standardAttrs = append(standardAttrs, attribute.String(key, v))
+		case int:
+			standardAttrs = append(standardAttrs, attribute.Int(key, v))
+		case int64:
+			standardAttrs = append(standardAttrs, attribute.Int64(key, v))
+		case float64:
+			standardAttrs = append(standardAttrs, attribute.Float64(key, v))
+		case bool:
+			standardAttrs = append(standardAttrs, attribute.Bool(key, v))
+		default:
+			standardAttrs = append(standardAttrs, attribute.String(key, fmt.Sprintf("%v", v)))
+		}
+	}
 
-	return otel.Tracer("todoapp").Start(ctx, spanName, trace.WithAttributes(allAttrs...))
+	ctx, span := otel.Tracer("todoapp").Start(ctx, spanName, trace.WithAttributes(standardAttrs...))
+	return ctx, &OTelSpan{span: span}
 }
 
-func (p *OTELProbe) StartServiceSpan(ctx context.Context, service string, operation string, userID int, attrs []attribute.KeyValue) (context.Context, trace.Span) {
+func (p *OTELProbe) StartServiceSpan(ctx context.Context, service string, operation string, userID int, attrs map[string]interface{}) (context.Context, port.Span) {
 	spanName := fmt.Sprintf("service.%s.%s", service, operation)
 
+	// Add standard service attributes
 	standardAttrs := []attribute.KeyValue{
 		attribute.String("service.name", service),
 		attribute.String("service.operation", operation),
@@ -48,28 +116,66 @@ func (p *OTELProbe) StartServiceSpan(ctx context.Context, service string, operat
 		attribute.String("component", "service"),
 	}
 
-	allAttrs := append(standardAttrs, attrs...)
+	// Convert map attrs to OpenTelemetry attributes
+	for key, value := range attrs {
+		switch v := value.(type) {
+		case string:
+			standardAttrs = append(standardAttrs, attribute.String(key, v))
+		case int:
+			standardAttrs = append(standardAttrs, attribute.Int(key, v))
+		case int64:
+			standardAttrs = append(standardAttrs, attribute.Int64(key, v))
+		case float64:
+			standardAttrs = append(standardAttrs, attribute.Float64(key, v))
+		case bool:
+			standardAttrs = append(standardAttrs, attribute.Bool(key, v))
+		default:
+			standardAttrs = append(standardAttrs, attribute.String(key, fmt.Sprintf("%v", v)))
+		}
+	}
 
-	return otel.Tracer("todoapp").Start(ctx, spanName, trace.WithAttributes(allAttrs...))
+	ctx, span := otel.Tracer("todoapp").Start(ctx, spanName, trace.WithAttributes(standardAttrs...))
+	return ctx, &OTelSpan{span: span}
 }
 
-func (p *OTELProbe) StartHTTPSpan(ctx context.Context, method string, path string, attrs []attribute.KeyValue) (context.Context, trace.Span) {
+func (p *OTELProbe) StartHTTPSpan(ctx context.Context, method string, path string, attrs map[string]interface{}) (context.Context, port.Span) {
 	spanName := fmt.Sprintf("http.%s", path)
 
+	// Add standard HTTP attributes
 	standardAttrs := []attribute.KeyValue{
 		attribute.String("http.method", method),
 		attribute.String("http.path", path),
 		attribute.String("component", "http"),
 	}
 
-	allAttrs := append(standardAttrs, attrs...)
+	// Convert map attrs to OpenTelemetry attributes
+	for key, value := range attrs {
+		switch v := value.(type) {
+		case string:
+			standardAttrs = append(standardAttrs, attribute.String(key, v))
+		case int:
+			standardAttrs = append(standardAttrs, attribute.Int(key, v))
+		case int64:
+			standardAttrs = append(standardAttrs, attribute.Int64(key, v))
+		case float64:
+			standardAttrs = append(standardAttrs, attribute.Float64(key, v))
+		case bool:
+			standardAttrs = append(standardAttrs, attribute.Bool(key, v))
+		default:
+			standardAttrs = append(standardAttrs, attribute.String(key, fmt.Sprintf("%v", v)))
+		}
+	}
 
-	return otel.Tracer("todoapp").Start(ctx, spanName, trace.WithAttributes(allAttrs...))
+	ctx, span := otel.Tracer("todoapp").Start(ctx, spanName, trace.WithAttributes(standardAttrs...))
+	return ctx, &OTelSpan{span: span}
 }
 
+// Repository operations
 func (p *OTELProbe) RecordRepositoryOperation(ctx context.Context, operation string, entity string, duration time.Duration, err error) {
+	// Get current span from context (created by StartRepositorySpan)
 	span := trace.SpanFromContext(ctx)
 
+	// Add operation details to existing span
 	span.SetAttributes(
 		attribute.String("operation", operation),
 		attribute.String("entity", entity),
@@ -78,8 +184,8 @@ func (p *OTELProbe) RecordRepositoryOperation(ctx context.Context, operation str
 	)
 
 	if err != nil {
-		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		span.RecordError(err)
 		p.logger.ErrorContext(ctx, "Repository operation failed",
 			"operation", operation,
 			"entity", entity,
@@ -91,22 +197,25 @@ func (p *OTELProbe) RecordRepositoryOperation(ctx context.Context, operation str
 }
 
 func (p *OTELProbe) RecordRepositoryQuery(ctx context.Context, operation string, entity string, query string, args []interface{}) {
+	// Log the query for debugging (but not the full args for security)
 	safeArgs := make([]string, len(args))
-
 	for i := range args {
 		safeArgs[i] = fmt.Sprintf("%T", args[i])
 	}
 
-	p.logger.DebugContext(ctx, "Repository query executed",
+	p.logger.DebugContext(ctx, "Executing repository query",
 		"operation", operation,
 		"entity", entity,
 		"query", query,
 		"args_types", safeArgs)
 }
 
+// Service operations
 func (p *OTELProbe) RecordServiceOperation(ctx context.Context, service string, operation string, userID int, duration time.Duration, err error) {
+	// Get current span from context (created by StartServiceSpan)
 	span := trace.SpanFromContext(ctx)
 
+	// Add operation details to existing span
 	span.SetAttributes(
 		attribute.String("service", service),
 		attribute.String("operation", operation),
@@ -116,8 +225,8 @@ func (p *OTELProbe) RecordServiceOperation(ctx context.Context, service string, 
 	)
 
 	if err != nil {
-		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		span.RecordError(err)
 		p.logger.ErrorContext(ctx, "Service operation failed",
 			"service", service,
 			"operation", operation,
@@ -129,24 +238,31 @@ func (p *OTELProbe) RecordServiceOperation(ctx context.Context, service string, 
 	}
 }
 
+// Business events
 func (p *OTELProbe) RecordBusinessEvent(ctx context.Context, event string, entity string, entityID string, userID int, metadata map[string]interface{}) {
 	// Create a span for the business event
-	ctx, span := p.StartRepositorySpan(ctx, fmt.Sprintf("event.%s", event), entity, []attribute.KeyValue{
-		attribute.String("event", event),
-		attribute.String("entity", entity),
-		attribute.String("entity_id", entityID),
-		attribute.Int("user_id", userID),
+	ctx, span := p.StartRepositorySpan(ctx, fmt.Sprintf("event.%s", event), entity, map[string]interface{}{
+		"event":     event,
+		"entity":    entity,
+		"entity_id": entityID,
+		"user_id":   userID,
 	})
 
 	// Add metadata as span attributes
 	for key, value := range metadata {
 		switch v := value.(type) {
 		case string:
-			span.SetAttributes(attribute.String(fmt.Sprintf("meta.%s", key), v))
+			span.SetAttributes(map[string]interface{}{key: v})
 		case int:
-			span.SetAttributes(attribute.Int(fmt.Sprintf("meta.%s", key), v))
+			span.SetAttributes(map[string]interface{}{key: v})
+		case int64:
+			span.SetAttributes(map[string]interface{}{key: v})
+		case float64:
+			span.SetAttributes(map[string]interface{}{key: v})
 		case bool:
-			span.SetAttributes(attribute.Bool(fmt.Sprintf("meta.%s", key), v))
+			span.SetAttributes(map[string]interface{}{key: v})
+		default:
+			span.SetAttributes(map[string]interface{}{key: fmt.Sprintf("%v", v)})
 		}
 	}
 
@@ -160,9 +276,12 @@ func (p *OTELProbe) RecordBusinessEvent(ctx context.Context, event string, entit
 		"metadata", metadata)
 }
 
+// HTTP operations
 func (p *OTELProbe) RecordHTTPOperation(ctx context.Context, method string, path string, statusCode int, duration time.Duration) {
+	// Get current span from context (created by StartHTTPSpan)
 	span := trace.SpanFromContext(ctx)
 
+	// Add HTTP operation details to existing span
 	span.SetAttributes(
 		attribute.String("http.method", method),
 		attribute.String("http.path", path),
@@ -170,6 +289,7 @@ func (p *OTELProbe) RecordHTTPOperation(ctx context.Context, method string, path
 		attribute.Int64("http.duration_ns", duration.Nanoseconds()),
 	)
 
+	// Set span status based on HTTP status
 	if statusCode >= 400 {
 		span.SetStatus(codes.Error, fmt.Sprintf("HTTP %d", statusCode))
 	} else {
@@ -183,6 +303,7 @@ func (p *OTELProbe) RecordHTTPOperation(ctx context.Context, method string, path
 		"duration_ns", duration.Nanoseconds())
 }
 
+// Errors
 func (p *OTELProbe) RecordError(ctx context.Context, operation string, err error, metadata map[string]interface{}) {
 	p.logger.ErrorContext(ctx, "Operation error recorded",
 		"operation", operation,

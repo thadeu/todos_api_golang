@@ -72,59 +72,58 @@ func (r *TodoRepository) Create(ctx context.Context, todo domain.Todo) error {
 }
 ```
 
-### **Padrão Recomendado** (Centralizado no Telemetry Probe):
+### **Padrão Recomendado** (Hexagonal Puro):
 ```go
 func (r *TodoRepository) GetAllWithCursor(ctx context.Context, userId int, limit int, cursor string) ([]domain.Todo, bool, error) {
-    // 1. Criar span usando o telemetry probe (único ponto de contato)
-    ctx, span := r.probe.StartRepositorySpan(ctx, "GetAllWithCursor", "todo", []attribute.KeyValue{
-        attribute.String("db.system", "sqlite"),
-        attribute.String("db.table", "todos"),
-        attribute.Int("user.id", userId),
-        attribute.Int("pagination.limit", limit),
-        attribute.String("pagination.cursor", cursor),
+    // 1. Criar span via telemetry probe (único ponto de contato)
+    ctx, span := r.telemetry.StartRepositorySpan(ctx, "GetAllWithCursor", "todo", map[string]interface{}{
+        "db.system":         "sqlite",
+        "db.table":          "todos",
+        "user.id":           userId,
+        "pagination.limit":  limit,
+        "pagination.cursor": cursor,
     })
     defer span.End()
 
-    // 2. Iniciar operação de telemetria (métricas e logs)
+    // 2. Track operation duration (sem dependências externas)
     startTime := time.Now()
-    operation := telemetry.StartOperation(r.probe, ctx, "GetAllWithCursor", "todo")
-
-    // 3. Garantir registro de duração no span
     defer func() {
         duration := time.Since(startTime)
-        span.SetAttributes(attribute.Int64("operation.duration_ns", duration.Nanoseconds()))
+        span.SetAttributes(map[string]interface{}{
+            "operation.duration_ns": duration.Nanoseconds(),
+        })
     }()
 
-    // ... lógica de negócio ...
+    // ... lógica de negócio pura ...
 
-    // 4. Executar query
+    // 3. Executar query
     rows, err := r.db.QueryContext(ctx, sql, args...)
     if err != nil {
-        span.SetStatus(codes.Error, err.Error())
+        span.SetStatus("error", err.Error())
         span.RecordError(err)
-        operation.End(err)
+        r.telemetry.RecordRepositoryOperation(ctx, "GetAllWithCursor", "todo", time.Since(startTime), err)
         return nil, false, err
     }
 
-    // 5. Processar resultados
+    // 4. Processar resultados
     var todos []domain.Todo
     err = r.scanner.ScanRowsToSlice(rows, &todos)
     if err != nil {
-        span.SetStatus(codes.Error, err.Error())
+        span.SetStatus("error", err.Error())
         span.RecordError(err)
-        operation.End(err)
+        r.telemetry.RecordRepositoryOperation(ctx, "GetAllWithCursor", "todo", time.Since(startTime), err)
         return nil, false, err
     }
 
-    // 6. Atualizar span com resultados da operação
-    span.SetAttributes(
-        attribute.Int("db.rows_returned", len(todos)),
-        attribute.Bool("db.has_next", hasNext),
-    )
+    // 5. Atualizar span com resultados
+    span.SetAttributes(map[string]interface{}{
+        "db.rows_returned": len(todos),
+        "db.has_next":      hasNext,
+    })
 
-    // 7. Sucesso - marcar span como OK
-    span.SetStatus(codes.Ok, "")
-    operation.End(nil)
+    // 6. Sucesso
+    span.SetStatus("ok", "")
+    r.telemetry.RecordRepositoryOperation(ctx, "GetAllWithCursor", "todo", time.Since(startTime), nil)
     return todos, hasNext, nil
 }
 ```
@@ -256,17 +255,28 @@ Cada operação cria spans com:
 
 ## 🎯 Vantagens da Implementação
 
-### **🏗️ Arquitetura Centralizada** (Telemetry como Único Ponto)
+### **🏗️ Arquitetura Hexagonal Pura** (Core Sem Dependências Externas)
 
-| Aspecto | Múltiplos Pontos | **Telemetry Centralizado** |
-|---------|------------------|---------------------------|
-| Tracing Distribuído | ✅ Vários otel.Tracer() | ✅ **probe.StartRepositorySpan()** |
-| Métricas & Logs | ❌ Código espalhado | ✅ **probe.Record*() unificado** |
-| Acoplamento | ❌ Import tracing everywhere | ✅ **Apenas port.TelemetryProbe** |
-| Testabilidade | ❌ Mocks complexos | ✅ **NoOpProbe ou custom probe** |
-| Manutenibilidade | ❌ Mudanças em múltiplos lugares | ✅ **Mudança apenas na implementação** |
-| Consistência | ❌ Padrões diferentes | ✅ **Padrão único e consistente** |
-| Business Events | ❌ Implementação ad-hoc | ✅ **probe.RecordBusinessEvent()** |
+#### **🎯 Core Domain Protegido**
+- ✅ **Zero dependências externas** no `core` (port + domain)
+- ✅ **Interface genérica Span** oculta OpenTelemetry
+- ✅ **Domínio focado na lógica de negócio**
+- ✅ **Injeção limpa** via interfaces
+
+| Aspecto | **Antes** (Core Acoplado) | **Depois** (Hexagonal Puro) |
+|---------|---------------------------|----------------------------|
+| Dependências | ❌ `go.opentelemetry.io/*` | ✅ **Apenas Go padrão** |
+| Interface | ❌ `[]attribute.KeyValue` | ✅ `map[string]interface{}` |
+| Span | ❌ `trace.Span` | ✅ `port.Span` genérico |
+| Testabilidade | ❌ Mocks complexos | ✅ **NoOpProbe direto** |
+| Manutenibilidade | ❌ Mudanças no domínio | ✅ **Mudanças apenas no adapter** |
+| Arquitetura | ❌ Violação hexagonal | ✅ **Hexagonal compliance** |
+
+#### **🔧 Implementação Centralizada**
+- ✅ **Telemetry como único ponto** de contato
+- ✅ **Spans criados via probe** (não direto)
+- ✅ **Business events estruturados**
+- ✅ **Métricas e logs unificados**
 
 ### **🎨 Padrões Implementados**
 
