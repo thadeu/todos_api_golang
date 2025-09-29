@@ -8,6 +8,21 @@ Created to study Golang
 
 I'm a Ruby Developer with many years of experience, but I need to learn a new language to up my mindset. So, I decided to study Golang and its approachs.
 
+## Features
+
+- [x] Authentication (JWT)
+- [x] Database (SQLite)
+- [x] Logging
+- [x] Telemetry (OpenTelemetry)
+- [x] Monitoring (Prometheus, Grafana, Tempo)
+- [x] Docker (Docker Compose)
+
+## Screenshots
+
+<img src="./images/grafana-logs.png" alt="logs" />
+<img src="./images/grafana-traces.png" alt="traces" />
+<img src="./images/grafana-metrics.png" alt="metrics" />
+
 ## CLI commands
 
 I didnt use Makefile instead I used to Taskfile ([taskfile.yml](taskfile.yml))
