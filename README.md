@@ -71,10 +71,6 @@ Now, cover tests with gotestsum formatter and cover `task cover`
 
 <img src="./images/gotestsum-cover.png" alt="gotestsum cover formatter" />
 
-The output test using gotestsum formatter.
-
-<img src="./images/gotestsum-formatter.png" alt="gotestsum formatter" />
-
 ## Monitoring using OpenTelemetry and Grafana
 
 <img src="./images/grafana-logs.png" alt="logs" />
