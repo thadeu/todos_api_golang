@@ -17,7 +17,65 @@ I'm a Ruby Developer with many years of experience, but I need to learn a new la
 - [x] Monitoring (Prometheus, Grafana, Tempo)
 - [x] Docker (Docker Compose)
 
-## Screenshots
+**Libraries to test LOC**
+
+- [x] [gomega](https://github.com/onsi/gomega)
+- [x] [testify](https://github.com/stretchr/testify)
+- [x] [gotestsum](https://github.com/gotestyourself/gotestsum)
+
+With this, I can write tests with simple and easy way. Using Expect and Suite directly without old way using assert.
+
+```go
+package repository
+
+import (
+  "testing"
+  "context"
+	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
+
+  ....
+)
+
+type TodoRepositoryTestSuite struct {
+	suite.Suite
+	TodoRepo port.TodoRepository
+	UserRepo port.UserRepository
+}
+
+func (s *TodoRepositoryTestSuite) SetupTest() {
+	db := InitTestDB()
+
+	s.repo = repository.NewTodoRepository(db)
+}
+
+func TestTodoRepositoryTestSuite(t *testing.T) {
+	RegisterTestingT(t)
+	suite.Run(t, new(TodoRepositoryTestSuite))
+}
+
+func (s *TodoRepositoryTestSuite) TestRepository_GetAllTodos_Empty() {
+	todos, _, err := s.repo.GetAllWithCursor(context.Background(), 0, 10, "")
+
+	Expect(err).To(BeNil())
+	Expect(todos).To(BeEmpty())
+}
+```
+
+The output test using gotestsum formatter.
+
+<img src="./images/gotestsum-formatter.png" alt="gotestsum formatter" />
+
+Now, cover tests with gotestsum formatter and cover `task cover`
+
+<img src="./images/gotestsum-cover.png" alt="gotestsum cover formatter" />
+
+The output test using gotestsum formatter.
+
+<img src="./images/gotestsum-formatter.png" alt="gotestsum formatter" />
+
+## Monitoring using OpenTelemetry and Grafana
 
 <img src="./images/grafana-logs.png" alt="logs" />
 <img src="./images/grafana-traces.png" alt="traces" />
