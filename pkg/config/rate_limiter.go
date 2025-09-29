@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"todoapp/internal/core/telemetry"
 	. "todoapp/pkg"
-	. "todoapp/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/patrickmn/go-cache"
@@ -26,7 +26,7 @@ type RateLimiter struct {
 	cache   *cache.Cache
 	config  map[string]RateLimitEndpointConfig
 	logger  *zap.Logger
-	metrics *AppMetrics
+	metrics *telemetry.AppMetrics
 	mutex   sync.RWMutex
 }
 
@@ -35,7 +35,7 @@ type RateLimitEntry struct {
 	ResetTime time.Time
 }
 
-func NewRateLimiter(logger *zap.Logger, metrics *AppMetrics) *RateLimiter {
+func NewRateLimiter(logger *zap.Logger, metrics *telemetry.AppMetrics) *RateLimiter {
 	c := cache.New(5*time.Minute, 10*time.Minute)
 
 	configs := map[string]RateLimitEndpointConfig{

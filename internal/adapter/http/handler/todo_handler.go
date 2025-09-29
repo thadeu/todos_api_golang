@@ -13,11 +13,9 @@ import (
 	"todoapp/internal/core/port"
 	"todoapp/internal/core/util"
 	"todoapp/pkg/config"
-	. "todoapp/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 )
 
@@ -34,14 +32,7 @@ func NewTodoHandler(todoUseCase port.TodoService, logger *config.LokiLogger) *To
 }
 
 func (t *TodoHandler) GetAllTodos(c *gin.Context) {
-	ctx, span := CreateChildSpan(c.Request.Context(), "handler.todo.GetAllTodos", []attribute.KeyValue{
-		attribute.String("handler.operation", "GetAllTodos"),
-		attribute.String("handler.method", c.Request.Method),
-		attribute.String("handler.path", c.FullPath()),
-	})
-
-	defer span.End()
-
+	ctx := c.Request.Context()
 	userId, _ := c.Get("x-user-id")
 	cursor := c.Query("cursor")
 	limit, _ := strconv.Atoi(c.Query("limit"))
@@ -50,19 +41,9 @@ func (t *TodoHandler) GetAllTodos(c *gin.Context) {
 		limit = 10
 	}
 
-	span.SetAttributes(
-		attribute.Int("user.id", userId.(int)),
-		attribute.String("todo.cursor", cursor),
-		attribute.Int("todo.limit", limit),
-	)
-
-	slog.Info("userId", "userId", userId)
-
 	data, err := t.svc.GetTodosWithPagination(ctx, userId.(int), limit, cursor)
 
 	if err != nil {
-		AddSpanError(span, err)
-
 		t.Logger.Logger.Ctx(ctx).Error("Failed to get todos",
 			zap.Error(err),
 			zap.Int("user_id", userId.(int)),
@@ -71,11 +52,6 @@ func (t *TodoHandler) GetAllTodos(c *gin.Context) {
 		SendInternalError(c, "Error getting todos")
 		return
 	}
-
-	span.SetAttributes(
-		attribute.Int("http.status_code", http.StatusOK),
-		attribute.String("response.type", "success"),
-	)
 
 	c.JSON(http.StatusOK, data)
 }

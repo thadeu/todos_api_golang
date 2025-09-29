@@ -9,15 +9,15 @@ import (
 	database "todoapp/internal/adapter/database/sqlite"
 	"todoapp/internal/adapter/http/routes"
 
+	"todoapp/internal/core/telemetry"
 	"todoapp/pkg/config"
-	"todoapp/pkg/tracing"
 )
 
-func StartServer(metrics *tracing.AppMetrics, logger *config.LokiLogger) {
+func StartServer(metrics *telemetry.AppMetrics, logger *config.LokiLogger) {
 	StartServerWithConfig(metrics, logger, config.GetDefaultConfig())
 }
 
-func StartServerWithConfig(metrics *tracing.AppMetrics, logger *config.LokiLogger, config *config.AppConfig) {
+func StartServerWithConfig(metrics *telemetry.AppMetrics, logger *config.LokiLogger, config *config.AppConfig) {
 	db, _ := database.NewDB()
 	defer db.Close()
 

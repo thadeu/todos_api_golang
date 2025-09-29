@@ -9,15 +9,15 @@ import (
 	"time"
 
 	"todoapp/internal/adapter/http/helper"
+	"todoapp/internal/core/telemetry"
 
 	. "todoapp/pkg/config"
-	. "todoapp/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
-func MetricsMiddleware(metrics *AppMetrics) gin.HandlerFunc {
+func MetricsMiddleware(metrics *telemetry.AppMetrics) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 
@@ -39,11 +39,11 @@ func MetricsMiddleware(metrics *AppMetrics) gin.HandlerFunc {
 	}
 }
 
-func SetupGinMiddleware(router *gin.Engine, serviceName string, metrics *AppMetrics, logger *LokiLogger) {
+func SetupGinMiddleware(router *gin.Engine, serviceName string, metrics *telemetry.AppMetrics, logger *LokiLogger) {
 	SetupGinMiddlewareWithConfig(router, serviceName, metrics, logger, GetDefaultConfig())
 }
 
-func SetupGinMiddlewareWithConfig(router *gin.Engine, serviceName string, metrics *AppMetrics, logger *LokiLogger, config *AppConfig) {
+func SetupGinMiddlewareWithConfig(router *gin.Engine, serviceName string, metrics *telemetry.AppMetrics, logger *LokiLogger, config *AppConfig) {
 
 	httpsEnforcer := NewHTTPSEnforcer(logger.Logger.Logger)
 	router.Use(httpsEnforcer.HTTPSMiddleware())

@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"todoapp/internal/adapter/http"
+	"todoapp/internal/adapter/telemetry"
 	"todoapp/pkg/config"
-	"todoapp/pkg/tracing"
 )
 
 func main() {
@@ -23,21 +24,20 @@ func main() {
 
 	defer logger.Sync()
 
-	telemetry, err := tracing.InitTelemetry(tracing.TelemetryConfig{
+	telemetryContainer, err := telemetry.NewContainer(telemetry.Config{
 		ServiceName:    "todoapp",
 		ServiceVersion: "1.0.0",
 		MetricsPort:    "9091",
 		OTLPEndpoint:   "localhost:4317",
-	})
+	}, slog.Default())
 
 	if err != nil {
 		log.Fatal("Failed to initialize telemetry:", err)
 	}
 
-	defer telemetry.Shutdown(ctx)
+	defer telemetryContainer.Shutdown(ctx)
 
-	metrics := tracing.NewAppMetrics(telemetry.PrometheusRegistry)
-	metrics.StartSystemMetrics(ctx)
+	telemetryContainer.AppMetrics.StartSystemMetrics(ctx)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -50,7 +50,7 @@ func main() {
 			config.EnforceHTTPS = true
 		}
 
-		http.StartServerWithConfig(metrics, logger, config)
+		http.StartServerWithConfig(telemetryContainer.AppMetrics, logger, config)
 	}()
 
 	<-c

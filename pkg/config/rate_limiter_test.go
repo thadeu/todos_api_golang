@@ -10,9 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"todoapp/internal/core/telemetry"
 	. "todoapp/pkg"
-
-	. "todoapp/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/gomega"
@@ -23,7 +22,7 @@ import (
 func TestNewRateLimiter(t *testing.T) {
 	RegisterTestingT(t)
 	logger := zap.NewNop()
-	metrics := NewAppMetrics(prometheus.NewRegistry())
+	metrics := telemetry.NewAppMetrics(prometheus.NewRegistry())
 	rl := NewRateLimiter(logger, metrics)
 
 	Expect(rl).ToNot(BeNil())
@@ -36,7 +35,7 @@ func TestNewRateLimiter(t *testing.T) {
 func TestRateLimitMiddleware_AllowedRequests(t *testing.T) {
 	RegisterTestingT(t)
 	logger := zap.NewNop()
-	metrics := NewAppMetrics(prometheus.NewRegistry())
+	metrics := telemetry.NewAppMetrics(prometheus.NewRegistry())
 	rl := NewRateLimiter(logger, metrics)
 
 	gin.SetMode(gin.TestMode)
@@ -62,7 +61,7 @@ func TestRateLimitMiddleware_AllowedRequests(t *testing.T) {
 func TestRateLimitMiddleware_ExceedLimit(t *testing.T) {
 	RegisterTestingT(t)
 	logger := zap.NewNop()
-	metrics := NewAppMetrics(prometheus.NewRegistry())
+	metrics := telemetry.NewAppMetrics(prometheus.NewRegistry())
 	rl := NewRateLimiter(logger, metrics)
 
 	gin.SetMode(gin.TestMode)
@@ -90,7 +89,7 @@ func TestRateLimitMiddleware_ExceedLimit(t *testing.T) {
 func TestRateLimitMiddleware_UserBasedLimiting(t *testing.T) {
 	RegisterTestingT(t)
 	logger := zap.NewNop()
-	metrics := NewAppMetrics(prometheus.NewRegistry())
+	metrics := telemetry.NewAppMetrics(prometheus.NewRegistry())
 	rl := NewRateLimiter(logger, metrics)
 
 	gin.SetMode(gin.TestMode)
@@ -130,7 +129,7 @@ func TestRateLimitMiddleware_UserBasedLimiting(t *testing.T) {
 func TestRateLimitMiddleware_PUTRequests(t *testing.T) {
 	RegisterTestingT(t)
 	logger := zap.NewNop()
-	metrics := NewAppMetrics(prometheus.NewRegistry())
+	metrics := telemetry.NewAppMetrics(prometheus.NewRegistry())
 	rl := NewRateLimiter(logger, metrics)
 
 	gin.SetMode(gin.TestMode)
@@ -170,7 +169,7 @@ func TestRateLimitMiddleware_PUTRequests(t *testing.T) {
 func TestRateLimitMiddleware_DELETERequests(t *testing.T) {
 	RegisterTestingT(t)
 	logger := zap.NewNop()
-	metrics := NewAppMetrics(prometheus.NewRegistry())
+	metrics := telemetry.NewAppMetrics(prometheus.NewRegistry())
 	rl := NewRateLimiter(logger, metrics)
 
 	gin.SetMode(gin.TestMode)
@@ -209,7 +208,7 @@ func TestRateLimitMiddleware_DELETERequests(t *testing.T) {
 func TestRateLimitMiddleware_WindowReset(t *testing.T) {
 	RegisterTestingT(t)
 	logger := zap.NewNop()
-	metrics := NewAppMetrics(prometheus.NewRegistry())
+	metrics := telemetry.NewAppMetrics(prometheus.NewRegistry())
 	rl := NewRateLimiter(logger, metrics)
 
 	gin.SetMode(gin.TestMode)
@@ -241,7 +240,7 @@ func TestRateLimitMiddleware_WindowReset(t *testing.T) {
 func TestRateLimiterGetStats(t *testing.T) {
 	RegisterTestingT(t)
 	logger := zap.NewNop()
-	metrics := NewAppMetrics(prometheus.NewRegistry())
+	metrics := telemetry.NewAppMetrics(prometheus.NewRegistry())
 	rl := NewRateLimiter(logger, metrics)
 
 	stats := rl.GetStats()
@@ -253,7 +252,7 @@ func TestRateLimiterGetStats(t *testing.T) {
 func TestRateLimiterSetConfig(t *testing.T) {
 	RegisterTestingT(t)
 	logger := zap.NewNop()
-	metrics := NewAppMetrics(prometheus.NewRegistry())
+	metrics := telemetry.NewAppMetrics(prometheus.NewRegistry())
 	rl := NewRateLimiter(logger, metrics)
 
 	config := RateLimitEndpointConfig{
@@ -272,7 +271,7 @@ func TestRateLimiterSetConfig(t *testing.T) {
 func TestRateLimitMiddleware_NoDoubleCounting(t *testing.T) {
 	RegisterTestingT(t)
 	logger := zap.NewNop()
-	metrics := NewAppMetrics(prometheus.NewRegistry())
+	metrics := telemetry.NewAppMetrics(prometheus.NewRegistry())
 	rl := NewRateLimiter(logger, metrics)
 
 	gin.SetMode(gin.TestMode)

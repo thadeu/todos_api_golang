@@ -1,7 +1,8 @@
-package tracing
+package telemetry
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -14,23 +15,27 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+
+	"todoapp/internal/core/port"
+	"todoapp/internal/core/telemetry"
 )
 
-type TelemetryConfig struct {
+type Config struct {
 	ServiceName    string
 	ServiceVersion string
 	MetricsPort    string
 	OTLPEndpoint   string
 }
 
-type Telemetry struct {
+type Container struct {
 	TracerProvider     *sdktrace.TracerProvider
 	MeterProvider      *sdkmetric.MeterProvider
 	PrometheusRegistry *prometheus.Registry
-	Server             *http.Server
+	MetricsServer      *http.Server
+	AppMetrics         *telemetry.AppMetrics
 }
 
-func InitTelemetry(config TelemetryConfig) (*Telemetry, error) {
+func NewContainer(config Config, logger *slog.Logger) (*Container, error) {
 	res := resource.NewWithAttributes(
 		semconv.SchemaURL,
 		semconv.ServiceNameKey.String(config.ServiceName),
@@ -39,6 +44,7 @@ func InitTelemetry(config TelemetryConfig) (*Telemetry, error) {
 	)
 
 	registry := prometheus.NewRegistry()
+	appMetrics := telemetry.NewAppMetrics(registry)
 
 	meterProvider := sdkmetric.NewMeterProvider(
 		sdkmetric.WithResource(res),
@@ -76,7 +82,7 @@ func InitTelemetry(config TelemetryConfig) (*Telemetry, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 
-	server := &http.Server{
+	metricsServer := &http.Server{
 		Addr:         ":" + config.MetricsPort,
 		Handler:      mux,
 		ReadTimeout:  15 * time.Second,
@@ -84,32 +90,37 @@ func InitTelemetry(config TelemetryConfig) (*Telemetry, error) {
 	}
 
 	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			// Log error but don't fail the application
-			// TODO: usar logger adequado
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("Failed to start metrics server", "error", err)
 		}
 	}()
 
-	return &Telemetry{
+	return &Container{
 		TracerProvider:     tracerProvider,
 		MeterProvider:      meterProvider,
 		PrometheusRegistry: registry,
-		Server:             server,
+		MetricsServer:      metricsServer,
+		AppMetrics:         appMetrics,
 	}, nil
 }
 
-func (t *Telemetry) Shutdown(ctx context.Context) error {
-	if err := t.TracerProvider.Shutdown(ctx); err != nil {
+func (c *Container) Shutdown(ctx context.Context) error {
+	if err := c.TracerProvider.Shutdown(ctx); err != nil {
 		return err
 	}
 
-	if err := t.MeterProvider.Shutdown(ctx); err != nil {
+	if err := c.MeterProvider.Shutdown(ctx); err != nil {
 		return err
 	}
 
-	if err := t.Server.Shutdown(ctx); err != nil {
+	if err := c.MetricsServer.Shutdown(ctx); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// NewTelemetryProbe cria um probe de telemetria configurado
+func (c *Container) NewTelemetryProbe(logger *slog.Logger) port.Telemetry {
+	return telemetry.NewOTELProbe(logger)
 }

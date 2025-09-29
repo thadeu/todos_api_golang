@@ -3,9 +3,8 @@ package routes
 import (
 	"todoapp/internal/adapter/http/handler"
 	"todoapp/internal/adapter/http/middleware"
-
-	. "todoapp/pkg/config"
-	. "todoapp/pkg/tracing"
+	"todoapp/internal/core/telemetry"
+	"todoapp/pkg/config"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,11 +14,11 @@ type HandlersConfig struct {
 	TodoHandler *handler.TodoHandler
 }
 
-func SetupRouter(handlers HandlersConfig, metrics *AppMetrics, logger *LokiLogger) *gin.Engine {
-	return SetupRouterWithConfig(handlers, metrics, logger, GetDefaultConfig())
+func SetupRouter(handlers HandlersConfig, metrics *telemetry.AppMetrics, logger *config.LokiLogger) *gin.Engine {
+	return SetupRouterWithConfig(handlers, metrics, logger, config.GetDefaultConfig())
 }
 
-func SetupRouterWithConfig(handlers HandlersConfig, metrics *AppMetrics, logger *LokiLogger, config *AppConfig) *gin.Engine {
+func SetupRouterWithConfig(handlers HandlersConfig, metrics *telemetry.AppMetrics, logger *config.LokiLogger, config *config.AppConfig) *gin.Engine {
 	if gin.Mode() == "" {
 		gin.SetMode(gin.ReleaseMode)
 	}
