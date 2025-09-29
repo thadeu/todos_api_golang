@@ -47,13 +47,6 @@ I didnt use Makefile instead I used to Taskfile ([taskfile.yml](taskfile.yml))
 * run:monitored:                 (aliases: run:mon)
 ```
 
-## Table of Contents
-
-<table>
-<tr><td>Branch</td><td>Description</td></tr>
-<tr><td>002_layered_structure</td><td>Description</td></tr>
-<table/>
-
 ## Available Branchs
 
 > [!NOTE]
