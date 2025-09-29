@@ -41,7 +41,7 @@ I didnt use Makefile instead I used to Taskfile ([taskfile.yml](taskfile.yml))
 
 ## Available Branchs
 
-> [!IMPORTANT] Based on this article:
+> [!NOTE] Based on this article:
 > 
 > https://medium.com/@smart_byte_labs/organize-like-a-pro-a-simple-guide-to-go-project-folder-structures-e85e9c1769c2
 
