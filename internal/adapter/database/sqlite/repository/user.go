@@ -36,7 +36,13 @@ func (ur *UserRepository) GetByUUID(ctx context.Context, uid string) (domain.Use
 
 	var data domain.User
 
-	rows, _ := ur.db.QueryContext(ctx, sql, args...)
+	rows, err := ur.db.QueryContext(ctx, sql, args...)
+
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	defer rows.Close()
 
 	err = ur.scanner.ScanRowToStruct(rows, &data)
 
@@ -62,7 +68,13 @@ func (ur *UserRepository) GetByEmail(ctx context.Context, email string) (domain.
 
 	var data domain.User
 
-	rows, _ := ur.db.QueryContext(ctx, sql, args...)
+	rows, err := ur.db.QueryContext(ctx, sql, args...)
+
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	defer rows.Close()
 
 	err = ur.scanner.ScanRowToStruct(rows, &data)
 

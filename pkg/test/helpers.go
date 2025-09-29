@@ -34,7 +34,7 @@ func InitTestDB() *database.DB {
 
 	database.RunMigrations(db, migrationsPath)
 
-	queryBuilder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+	queryBuilder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question)
 
 	return &database.DB{
 		DB:           db,

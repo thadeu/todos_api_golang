@@ -48,7 +48,7 @@ func TestTodoUseCaseTestSuite(t *testing.T) {
 	suite.Run(t, new(TodoUseCaseTestSuite))
 }
 
-func (s *TodoUseCaseTestSuite) TestUseCase_GetAllUsers_Empty() {
+func (s *TodoUseCaseTestSuite) TestUseCase_GetTodosWithPagination_Empty() {
 	todos, err := s.UseCase.GetTodosWithPagination(context.Background(), 0, 1, "")
 
 	// assert.NoError(s.T(), err)
@@ -59,7 +59,7 @@ func (s *TodoUseCaseTestSuite) TestUseCase_GetAllUsers_Empty() {
 	Expect(todos.Data.MarshalJSON()).To(Equal([]byte("[]")))
 }
 
-func (s *TodoUseCaseTestSuite) TestUseCase_GetAllUsers_WithData() {
+func (s *TodoUseCaseTestSuite) TestUseCase_GetTodosWithPagination_WithData() {
 	user, _ := s.UserRepo.Create(context.Background(), domain.User{
 		UUID:  uuid.New(),
 		Name:  "Test User",
@@ -73,6 +73,7 @@ func (s *TodoUseCaseTestSuite) TestUseCase_GetAllUsers_WithData() {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
+
 	s.TodoRepo.Create(context.Background(), item1)
 
 	item2 := domain.Todo{

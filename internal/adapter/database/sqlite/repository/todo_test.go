@@ -35,7 +35,7 @@ func TestTodoRepositoryTestSuite(t *testing.T) {
 	suite.Run(t, new(TodoRepositoryTestSuite))
 }
 
-func (s *TodoRepositoryTestSuite) TestRepository_GetAllUsers_Empty() {
+func (s *TodoRepositoryTestSuite) TestRepository_GetAllTodos_Empty() {
 	users, _, err := s.TodoRepo.GetAllWithCursor(context.Background(), 0, 10, "")
 
 	Expect(err).To(BeNil())

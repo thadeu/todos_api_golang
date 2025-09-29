@@ -18,6 +18,54 @@ func NewScanner() *Scanner {
 	return &Scanner{}
 }
 
+// ScanCurrentRowToStruct scans the CURRENT row from rows into dest without calling rows.Next().
+// The caller must ensure rows.Next() has already been called and returned true.
+func (s *Scanner) ScanCurrentRowToStruct(rows *sql.Rows, dest interface{}) error {
+	destValue := reflect.ValueOf(dest)
+
+	if destValue.Kind() != reflect.Ptr || destValue.Elem().Kind() != reflect.Struct {
+		return fmt.Errorf("dest must be a pointer to struct")
+	}
+
+	destElem := destValue.Elem()
+	destType := destElem.Type()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return err
+	}
+
+	scanArgs := make([]interface{}, len(columns))
+	for i := range scanArgs {
+		scanArgs[i] = new(interface{})
+	}
+
+	if err := rows.Scan(scanArgs...); err != nil {
+		return err
+	}
+
+	for i, colName := range columns {
+		val := *(scanArgs[i].(*interface{}))
+
+		field := s.findStructField(destType, colName)
+
+		if field.Name == "" || field.Type == nil {
+			continue
+		}
+
+		if val != nil && field.Type.Kind() == reflect.Int {
+			s.setFieldValue(destElem.FieldByIndex(field.Index), int(val.(int64)), field)
+			continue
+		}
+
+		if err := s.setFieldValue(destElem.FieldByIndex(field.Index), val, field); err != nil {
+			slog.Warn("Failed to set field", "field", field.Name, "error", err)
+		}
+	}
+
+	return nil
+}
+
 func (s *Scanner) ScanRowToStruct(rows *sql.Rows, dest interface{}) error {
 	destValue := reflect.ValueOf(dest)
 
@@ -92,7 +140,7 @@ func (s *Scanner) ScanRowsToSlice(rows *sql.Rows, dest interface{}) error {
 		elemValue := reflect.New(elemType)
 		elem := elemValue.Interface()
 
-		if err := s.ScanRowToStruct(rows, elem); err != nil {
+		if err := s.ScanCurrentRowToStruct(rows, elem); err != nil {
 			return err
 		}
 

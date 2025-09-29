@@ -79,7 +79,7 @@ func New() *sql.DB {
 
 func NewDB() (*DB, error) {
 	sqlDB := New()
-	queryBuilder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+	queryBuilder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question)
 
 	return &DB{
 		DB:           sqlDB,

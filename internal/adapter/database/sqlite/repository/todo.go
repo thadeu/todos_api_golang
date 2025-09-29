@@ -38,13 +38,14 @@ func (tr *TodoRepository) GetAllWithCursor(ctx context.Context, userId int, limi
 
 	actualLimit := limit + 1
 
-	var query string
-	var args []interface{}
+	query := tr.db.QueryBuilder.Select("*").
+		From("todos").
+		Where(sq.Eq{"user_id": userId}).
+		Where(sq.Eq{"deleted_at": nil}).
+		OrderBy("created_at DESC, id DESC").
+		Limit(uint64(actualLimit))
 
-	if cursor == "" {
-		query = "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at FROM todos WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT ?"
-		args = []interface{}{userId, actualLimit}
-	} else {
+	if cursor != "" {
 		datetimeStr, id, err := util.DecodeCursor(cursor)
 
 		if err != nil {
@@ -61,54 +62,44 @@ func (tr *TodoRepository) GetAllWithCursor(ctx context.Context, userId int, limi
 			return []domain.Todo{}, false, err
 		}
 
-		query = "SELECT id, uuid, title, description, status, completed, user_id, created_at, updated_at FROM todos WHERE user_id = ? AND (created_at < ? OR (created_at = ? AND id < ?)) AND deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT ?"
-		args = []interface{}{userId, datetime, datetime, id, actualLimit}
+		query = query.Where(sq.Or{sq.Lt{"created_at": datetime}, sq.And{sq.Eq{"created_at": datetime}, sq.Lt{"id": id}}})
 	}
 
-	stmt, err := tr.db.PrepareContext(ctx, query)
+	sql, args, err := query.ToSql()
 
 	if err != nil {
-		slog.Error("Error fetching todos", "error", err)
 		return []domain.Todo{}, false, err
 	}
 
-	defer stmt.Close()
-
-	rows, err := stmt.QueryContext(ctx, args...)
+	rows, err := tr.db.QueryContext(ctx, sql, args...)
 
 	if err != nil {
-		slog.Error("Error fetching todos", "error", err)
+		slog.Error("Error fetching todos", "error", err, "sql", sql, "args", args)
 		return []domain.Todo{}, false, err
 	}
 
 	defer rows.Close()
 
-	data := []domain.Todo{}
+	var todos []domain.Todo
+	err = tr.scanner.ScanRowsToSlice(rows, &todos)
 
-	for rows.Next() {
-		var todo domain.Todo
-
-		err = rows.Scan(&todo.ID, &todo.UUID, &todo.Title, &todo.Description, &todo.Status, &todo.Completed, &todo.UserId, &todo.CreatedAt, &todo.UpdatedAt)
-
-		if err != nil {
-			return []domain.Todo{}, false, err
-		}
-
-		data = append(data, todo)
+	if err != nil {
+		slog.Error("Error scanning todos", "error", err, "sql", sql, "args", args)
+		return []domain.Todo{}, false, err
 	}
 
-	hasNext := len(data) == actualLimit
+	hasNext := len(todos) == actualLimit
 
 	if hasNext {
-		data = data[:limit]
+		todos = todos[:limit]
 	}
 
 	span.SetAttributes(
-		attribute.Int("db.rows_returned", len(data)),
+		attribute.Int("db.rows_returned", len(todos)),
 		attribute.Bool("db.has_next", hasNext),
 	)
 
-	return data, hasNext, nil
+	return todos, hasNext, nil
 }
 
 func (tr *TodoRepository) GetByUUID(ctx context.Context, uid string) (domain.Todo, error) {
