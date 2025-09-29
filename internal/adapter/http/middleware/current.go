@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	ct "todoapp/pkg/context"
+	ct "todos/pkg/context"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

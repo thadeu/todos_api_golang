@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"todoapp/internal/core/port"
+	"todos/internal/core/port"
 
 	"github.com/redis/go-redis/v9"
 )

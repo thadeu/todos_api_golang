@@ -17,18 +17,18 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/suite"
 
-	. "todoapp/pkg/test"
+	. "todos/pkg/test"
 
-	"todoapp/internal/adapter/database/sqlite/repository"
-	"todoapp/internal/adapter/http/helper"
-	"todoapp/internal/adapter/http/middleware"
-	"todoapp/internal/core/domain"
-	"todoapp/internal/core/model/response"
-	"todoapp/internal/core/port"
-	"todoapp/internal/core/service"
-	"todoapp/internal/core/telemetry"
+	"todos/internal/adapter/database/sqlite/repository"
+	"todos/internal/adapter/http/helper"
+	"todos/internal/adapter/http/middleware"
+	"todos/internal/core/domain"
+	"todos/internal/core/model/response"
+	"todos/internal/core/port"
+	"todos/internal/core/service"
+	"todos/internal/core/telemetry"
 
-	factory "todoapp/pkg/test/factory"
+	factory "todos/pkg/test/factory"
 )
 
 type TodoHandlerSuite struct {

@@ -6,8 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"todoapp/internal/core/domain"
-	"todoapp/internal/core/port"
+	"todos/internal/core/domain"
+	"todos/internal/core/port"
 )
 
 type UserService struct {

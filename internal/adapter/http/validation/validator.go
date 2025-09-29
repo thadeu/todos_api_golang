@@ -2,7 +2,7 @@ package http
 
 import (
 	"strings"
-	"todoapp/internal/core/model/response"
+	"todos/internal/core/model/response"
 
 	"github.com/go-playground/locales/pt_BR"
 	ut "github.com/go-playground/universal-translator"

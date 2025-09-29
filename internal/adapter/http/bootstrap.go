@@ -6,11 +6,11 @@ import (
 	"os"
 	"time"
 
-	database "todoapp/internal/adapter/database/sqlite"
-	"todoapp/internal/adapter/http/routes"
+	database "todos/internal/adapter/database/sqlite"
+	"todos/internal/adapter/http/routes"
 
-	"todoapp/internal/core/telemetry"
-	"todoapp/pkg/config"
+	"todos/internal/core/telemetry"
+	"todos/pkg/config"
 )
 
 func StartServer(metrics *telemetry.AppMetrics, logger *config.LokiLogger) {

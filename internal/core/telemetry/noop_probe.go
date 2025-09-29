@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"todoapp/internal/core/port"
+	"todos/internal/core/port"
 )
 
 // NoOpProbe implements Telemetry with no operations - useful for testing or when telemetry is disabled

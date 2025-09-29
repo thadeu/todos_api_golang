@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"todoapp/internal/core/telemetry"
-	. "todoapp/pkg"
+	"todos/internal/core/telemetry"
+	. "todos/pkg"
 
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/gomega"

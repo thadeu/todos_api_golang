@@ -3,8 +3,8 @@ package port
 import (
 	"context"
 
-	"todoapp/internal/core/domain"
-	"todoapp/internal/core/model/response"
+	"todos/internal/core/domain"
+	"todos/internal/core/model/response"
 )
 
 type TodoRepository interface {

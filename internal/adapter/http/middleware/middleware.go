@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"todoapp/internal/adapter/http/helper"
-	"todoapp/internal/core/telemetry"
+	"todos/internal/adapter/http/helper"
+	"todos/internal/core/telemetry"
 
-	. "todoapp/pkg/config"
+	. "todos/pkg/config"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"

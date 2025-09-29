@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	. "todoapp/pkg/test"
+	. "todos/pkg/test"
 
-	"todoapp/internal/adapter/database/sqlite/repository"
-	"todoapp/internal/core/domain"
-	"todoapp/internal/core/port"
-	coretelemetry "todoapp/internal/core/telemetry"
+	"todos/internal/adapter/database/sqlite/repository"
+	"todos/internal/core/domain"
+	"todos/internal/core/port"
+	coretelemetry "todos/internal/core/telemetry"
 
 	"github.com/google/uuid"
 	. "github.com/onsi/gomega"

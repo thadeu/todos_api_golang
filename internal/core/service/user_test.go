@@ -8,13 +8,13 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/suite"
 
-	. "todoapp/pkg/test"
+	. "todos/pkg/test"
 
-	"todoapp/internal/adapter/database/sqlite/repository"
-	"todoapp/internal/core/domain"
-	"todoapp/internal/core/port"
-	"todoapp/internal/core/service"
-	"todoapp/internal/core/telemetry"
+	"todos/internal/adapter/database/sqlite/repository"
+	"todos/internal/core/domain"
+	"todos/internal/core/port"
+	"todos/internal/core/service"
+	"todos/internal/core/telemetry"
 )
 
 type UserUseCaseTestSuite struct {

@@ -3,8 +3,8 @@ package helper
 import (
 	"net/http"
 
-	. "todoapp/internal/adapter/http/validation"
-	"todoapp/internal/core/model/response"
+	. "todos/internal/adapter/http/validation"
+	"todos/internal/core/model/response"
 
 	"github.com/gin-gonic/gin"
 )

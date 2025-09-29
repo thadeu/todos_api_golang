@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"todoapp/internal/adapter/http"
-	"todoapp/internal/adapter/telemetry"
-	"todoapp/pkg/config"
+	"todos/internal/adapter/http"
+	"todos/internal/adapter/telemetry"
+	"todos/pkg/config"
 )
 
 func main() {

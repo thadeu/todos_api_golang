@@ -7,10 +7,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"todoapp/internal/core/domain"
-	"todoapp/internal/core/model/response"
-	"todoapp/internal/core/port"
-	"todoapp/internal/core/util"
+	"todos/internal/core/domain"
+	"todos/internal/core/model/response"
+	"todos/internal/core/port"
+	"todos/internal/core/util"
 )
 
 type TodoService struct {

@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"todoapp/internal/core/port"
+	"todos/internal/core/port"
 )
 
 // OTELProbe implements Telemetry using OpenTelemetry

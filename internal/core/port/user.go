@@ -2,7 +2,7 @@ package port
 
 import (
 	"context"
-	"todoapp/internal/core/domain"
+	"todos/internal/core/domain"
 )
 
 type UserRepository interface {

@@ -8,10 +8,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"todoapp/internal/core/domain"
-	"todoapp/internal/core/model/request"
-	"todoapp/internal/core/port"
-	"todoapp/internal/core/util"
+	"todos/internal/core/domain"
+	"todos/internal/core/model/request"
+	"todos/internal/core/port"
+	"todos/internal/core/util"
 )
 
 type AuthService struct {

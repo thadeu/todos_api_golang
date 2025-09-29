@@ -3,7 +3,7 @@ package middleware
 import (
 	"time"
 
-	"todoapp/pkg/config"
+	"todos/pkg/config"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"

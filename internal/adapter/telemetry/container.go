@@ -16,8 +16,8 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
-	"todoapp/internal/core/port"
-	"todoapp/internal/core/telemetry"
+	"todos/internal/core/port"
+	"todos/internal/core/telemetry"
 )
 
 type Config struct {

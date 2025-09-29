@@ -8,11 +8,11 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 
-	"todoapp/internal/adapter/database/sqlite"
-	"todoapp/internal/core/domain"
-	"todoapp/internal/core/port"
-	tel "todoapp/internal/core/telemetry"
-	"todoapp/internal/core/util"
+	"todos/internal/adapter/database/sqlite"
+	"todos/internal/core/domain"
+	"todos/internal/core/port"
+	tel "todos/internal/core/telemetry"
+	"todos/internal/core/util"
 )
 
 type TodoRepository struct {

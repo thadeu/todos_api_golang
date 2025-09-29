@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"todoapp/internal/core/port"
+	"todos/internal/core/port"
 )
 
 type memoryRepository struct{}

@@ -48,7 +48,7 @@ Em arquitetura hexagonal, o **domínio** (core) não deve conhecer implementaç�
 ### 1. Importe a interface
 
 ```go
-import "todoapp/internal/core/port"
+import "todos/internal/core/port"
 
 type TodoRepository struct {
     probe port.TelemetryProbe

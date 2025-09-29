@@ -3,14 +3,14 @@ package http
 import (
 	"log/slog"
 
-	database "todoapp/internal/adapter/database/sqlite"
-	repository "todoapp/internal/adapter/database/sqlite/repository"
+	database "todos/internal/adapter/database/sqlite"
+	repository "todos/internal/adapter/database/sqlite/repository"
 
-	"todoapp/internal/adapter/http/handler"
-	"todoapp/internal/core/port"
-	"todoapp/internal/core/service"
-	"todoapp/internal/core/telemetry"
-	"todoapp/pkg/config"
+	"todos/internal/adapter/http/handler"
+	"todos/internal/core/port"
+	"todos/internal/core/service"
+	"todos/internal/core/telemetry"
+	"todos/pkg/config"
 )
 
 type Container struct {

@@ -7,8 +7,8 @@ import (
 
 	"github.com/Masterminds/squirrel"
 
-	database "todoapp/internal/adapter/database/sqlite"
-	"todoapp/pkg"
+	database "todos/internal/adapter/database/sqlite"
+	"todos/pkg"
 )
 
 type TestSetup[T any] struct {

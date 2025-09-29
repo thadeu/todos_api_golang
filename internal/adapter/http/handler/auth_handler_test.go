@@ -9,13 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	. "todoapp/pkg/test"
+	. "todos/pkg/test"
 
-	"todoapp/internal/adapter/database/sqlite/repository"
-	"todoapp/internal/core/model/response"
-	"todoapp/internal/core/port"
-	"todoapp/internal/core/service"
-	"todoapp/internal/core/telemetry"
+	"todos/internal/adapter/database/sqlite/repository"
+	"todos/internal/core/model/response"
+	"todos/internal/core/port"
+	"todos/internal/core/service"
+	"todos/internal/core/telemetry"
 
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/gomega"

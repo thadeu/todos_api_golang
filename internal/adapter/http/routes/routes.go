@@ -1,10 +1,10 @@
 package routes
 
 import (
-	"todoapp/internal/adapter/http/handler"
-	"todoapp/internal/adapter/http/middleware"
-	"todoapp/internal/core/telemetry"
-	"todoapp/pkg/config"
+	"todos/internal/adapter/http/handler"
+	"todos/internal/adapter/http/middleware"
+	"todos/internal/core/telemetry"
+	"todos/pkg/config"
 
 	"github.com/gin-gonic/gin"
 )

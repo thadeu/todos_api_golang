@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"todoapp/internal/core/model/response"
+	"todos/internal/core/model/response"
 )
 
 func hmacSignature(encoded string) string {

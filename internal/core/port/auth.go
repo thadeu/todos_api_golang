@@ -3,8 +3,8 @@ package port
 import (
 	"context"
 
-	"todoapp/internal/core/domain"
-	"todoapp/internal/core/model/request"
+	"todos/internal/core/domain"
+	"todos/internal/core/model/request"
 )
 
 type AuthService interface {

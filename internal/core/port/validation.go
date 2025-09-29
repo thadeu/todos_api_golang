@@ -1,6 +1,6 @@
 package port
 
-import "todoapp/internal/core/model/response"
+import "todos/internal/core/model/response"
 
 type Validator interface {
 	ValidateStruct(s interface{}) error
