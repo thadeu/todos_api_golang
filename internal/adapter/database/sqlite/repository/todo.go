@@ -34,7 +34,6 @@ func NewTodoRepository(db *sqlite.DB, telemetry port.Telemetry) port.TodoReposit
 }
 
 func (tr *TodoRepository) GetAllWithCursor(ctx context.Context, userId int, limit int, cursor string) ([]domain.Todo, bool, error) {
-	// Create span using telemetry probe
 	ctx, span := tr.telemetry.StartRepositorySpan(ctx, "GetAllWithCursor", "todo", map[string]interface{}{
 		"db.system":         "sqlite",
 		"db.table":          "todos",
@@ -142,6 +141,16 @@ func (tr *TodoRepository) GetAllWithCursor(ctx context.Context, userId int, limi
 }
 
 func (tr *TodoRepository) GetByUUID(ctx context.Context, uid string) (domain.Todo, error) {
+	startTime := time.Now()
+
+	ctx, span := tr.telemetry.StartRepositorySpan(ctx, "GetByUUID", "todo", map[string]interface{}{
+		"db.system": "sqlite",
+		"db.table":  "todos",
+		"user.id":   uid,
+		"todo.uuid": uid,
+	})
+	defer span.End()
+
 	query := tr.db.QueryBuilder.Select("*").
 		From("todos").
 		Where(sq.Eq{"uuid": uid}).
@@ -151,12 +160,18 @@ func (tr *TodoRepository) GetByUUID(ctx context.Context, uid string) (domain.Tod
 	sql, args, err := query.ToSql()
 
 	if err != nil {
+		span.SetStatus("error", err.Error())
+		span.RecordError(err)
+		tr.telemetry.RecordRepositoryOperation(ctx, "GetByUUID", "todo", time.Since(startTime), err)
 		return domain.Todo{}, err
 	}
 
 	rows, err := tr.db.QueryContext(ctx, sql, args...)
 
 	if err != nil {
+		span.SetStatus("error", err.Error())
+		span.RecordError(err)
+		tr.telemetry.RecordRepositoryOperation(ctx, "GetByUUID", "todo", time.Since(startTime), err)
 		return domain.Todo{}, err
 	}
 
@@ -164,6 +179,9 @@ func (tr *TodoRepository) GetByUUID(ctx context.Context, uid string) (domain.Tod
 
 	var todo domain.Todo
 	err = tr.scanner.ScanRowToStruct(rows, &todo)
+
+	span.SetStatus("ok", "")
+	tr.telemetry.RecordRepositoryOperation(ctx, "GetByUUID", "todo", time.Since(startTime), nil)
 
 	todo.Status, _ = todo.StatusToEnum(todo.StatusOrFallback())
 
@@ -175,8 +193,7 @@ func (tr *TodoRepository) GetByUUID(ctx context.Context, uid string) (domain.Tod
 	return todo, nil
 }
 
-func (tr *TodoRepository) Create(ctx context.Context, todo domain.Todo) (domain.Todo, error) {
-	// Create span using telemetry probe
+func (tr *TodoRepository) Create(ctx context.Context, todo domain.Todo) (domain.Todo, error) { // Create span using telemetry probe
 	ctx, span := tr.telemetry.StartRepositorySpan(ctx, "Create", "todo", map[string]interface{}{
 		"db.system":    "sqlite",
 		"db.table":     "todos",
@@ -259,7 +276,6 @@ func (tr *TodoRepository) Create(ctx context.Context, todo domain.Todo) (domain.
 }
 
 func (tr *TodoRepository) UpdateByUUID(ctx context.Context, todo domain.Todo) (domain.Todo, error) {
-	// Create span using telemetry probe
 	ctx, span := tr.telemetry.StartRepositorySpan(ctx, "UpdateByUUID", "todo", map[string]interface{}{
 		"db.system":    "sqlite",
 		"db.table":     "todos",
@@ -389,9 +405,21 @@ func (tr *TodoRepository) UpdateByUUID(ctx context.Context, todo domain.Todo) (d
 }
 
 func (tr *TodoRepository) DeleteByUUID(ctx context.Context, uuid string) error {
+	startTime := time.Now()
+
+	ctx, span := tr.telemetry.StartRepositorySpan(ctx, "DeleteByUUID", "todo", map[string]interface{}{
+		"db.system": "sqlite",
+		"db.table":  "todos",
+		"todo.uuid": uuid,
+	})
+	defer span.End()
+
 	stmt, err := tr.db.PrepareContext(ctx, "UPDATE todos SET deleted_at = ? WHERE uuid = ?")
 
 	if err != nil {
+		span.SetStatus("error", err.Error())
+		span.RecordError(err)
+		tr.telemetry.RecordRepositoryOperation(ctx, "DeleteByUUID", "todo", time.Since(startTime), err)
 		return err
 	}
 
@@ -401,14 +429,23 @@ func (tr *TodoRepository) DeleteByUUID(ctx context.Context, uuid string) error {
 	result, err := stmt.ExecContext(ctx, now, uuid)
 
 	if err != nil {
+		span.SetStatus("error", err.Error())
+		span.RecordError(err)
+		tr.telemetry.RecordRepositoryOperation(ctx, "DeleteByUUID", "todo", time.Since(startTime), err)
 		return err
 	}
 
 	rowsAffected, _ := result.RowsAffected()
 
 	if rowsAffected == 0 {
+		span.SetStatus("error", fmt.Errorf("todos with uuid %s not found", uuid).Error())
+		span.RecordError(fmt.Errorf("todos with uuid %s not found", uuid))
+		tr.telemetry.RecordRepositoryOperation(ctx, "DeleteByUUID", "todo", time.Since(startTime), fmt.Errorf("todos with uuid %s not found", uuid))
 		return fmt.Errorf("todos with uuid %s not found", uuid)
 	}
+
+	span.SetStatus("ok", "")
+	tr.telemetry.RecordRepositoryOperation(ctx, "DeleteByUUID", "todo", time.Since(startTime), nil)
 
 	return nil
 }
