@@ -30,6 +30,10 @@ func StartServerWithConfig(metrics *tracing.AppMetrics, logger *config.LokiLogge
 
 	port := os.Getenv("PORT")
 
+	if port == "" {
+		port = "8080"
+	}
+
 	slog.Info("Server starting",
 		"port", port,
 		"environment", config.Environment,

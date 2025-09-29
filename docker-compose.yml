@@ -98,7 +98,7 @@ services:
       - monitoring
 
 volumes:
-  todoapp_pg_data:
+  postgres_data:
   prometheus_data:
   grafana_data:
   loki_data:

@@ -49,7 +49,7 @@ func New() *sql.DB {
 	migrationsPath := os.Getenv("MIGRATIONS_PATH")
 
 	if migrationsPath == "" {
-		migrationsPath = "db/migrations"
+		migrationsPath = "infra/migrations"
 	}
 
 	RunMigrations(migrationDB, migrationsPath)
