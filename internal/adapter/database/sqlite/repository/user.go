@@ -11,15 +11,26 @@ import (
 	"todoapp/internal/adapter/database/sqlite"
 	"todoapp/internal/core/domain"
 	"todoapp/internal/core/port"
+	tel "todoapp/internal/core/telemetry"
 )
 
 type UserRepository struct {
-	db      *sqlite.DB
-	scanner *sqlite.Scanner
+	db        *sqlite.DB
+	scanner   *sqlite.Scanner
+	telemetry port.Telemetry
 }
 
-func NewUserRepository(db *sqlite.DB) port.UserRepository {
-	return &UserRepository{db: db, scanner: sqlite.NewScanner()}
+func NewUserRepository(db *sqlite.DB, telemetry port.Telemetry) port.UserRepository {
+	if telemetry == nil {
+		// Use NoOpProbe if none provided
+		telemetry = tel.NewNoOpProbe()
+	}
+
+	return &UserRepository{
+		db:        db,
+		scanner:   sqlite.NewScanner(),
+		telemetry: telemetry,
+	}
 }
 
 func (ur *UserRepository) GetByUUID(ctx context.Context, uid string) (domain.User, error) {

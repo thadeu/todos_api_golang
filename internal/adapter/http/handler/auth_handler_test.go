@@ -15,6 +15,7 @@ import (
 	"todoapp/internal/core/model/response"
 	"todoapp/internal/core/port"
 	"todoapp/internal/core/service"
+	"todoapp/internal/core/telemetry"
 
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/gomega"
@@ -38,7 +39,8 @@ func (s *AuthHandlerSuite) SetupTest() {
 	gin.SetMode(gin.TestMode)
 
 	db := InitTestDB()
-	s.UserRepo = repository.NewUserRepository(db)
+	probe := telemetry.NewNoOpProbe() // Use NoOpProbe for tests
+	s.UserRepo = repository.NewUserRepository(db, probe)
 
 	authUseCase := service.NewAuthService(s.UserRepo)
 	globalAuthHandler = NewAuthHandler(authUseCase)

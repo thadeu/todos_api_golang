@@ -9,6 +9,7 @@ import (
 	"todoapp/internal/adapter/database/sqlite/repository"
 	"todoapp/internal/core/domain"
 	"todoapp/internal/core/port"
+	"todoapp/internal/core/telemetry"
 
 	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
@@ -23,8 +24,9 @@ type UserRepositoryTestSuite struct {
 
 func (s *UserRepositoryTestSuite) SetupTest() {
 	db := InitTestDB()
+	probe := telemetry.NewNoOpProbe() // Use NoOpProbe for tests
 
-	s.repo = repository.NewUserRepository(db)
+	s.repo = repository.NewUserRepository(db, probe)
 }
 
 func TestUserRepositoryTestSuite(t *testing.T) {

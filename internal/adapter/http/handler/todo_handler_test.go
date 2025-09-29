@@ -26,6 +26,7 @@ import (
 	"todoapp/internal/core/model/response"
 	"todoapp/internal/core/port"
 	"todoapp/internal/core/service"
+	"todoapp/internal/core/telemetry"
 
 	factory "todoapp/pkg/test/factory"
 )
@@ -47,12 +48,13 @@ func (s *TodoHandlerSuite) SetupSuite() {
 
 func (s *TodoHandlerSuite) SetupTest() {
 	db := InitTestDB()
+	probe := telemetry.NewNoOpProbe() // Use NoOpProbe for tests
 
-	s.TodoRepo = repository.NewTodoRepository(db)
-	s.UserRepo = repository.NewUserRepository(db)
+	s.TodoRepo = repository.NewTodoRepository(db, probe)
+	s.UserRepo = repository.NewUserRepository(db, probe)
 
 	// Create use case and handler
-	todoUseCase := service.NewTodoService(s.TodoRepo)
+	todoUseCase := service.NewTodoService(s.TodoRepo, probe)
 	globalTodoHandler = NewTodoHandler(todoUseCase, nil)
 
 	// Setup router directly to avoid import cycle

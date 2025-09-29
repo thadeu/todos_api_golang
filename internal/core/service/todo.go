@@ -14,15 +14,26 @@ import (
 )
 
 type TodoService struct {
-	repo port.TodoRepository
+	repo      port.TodoRepository
+	telemetry port.Telemetry
 }
 
-func NewTodoService(repo port.TodoRepository) *TodoService {
-	return &TodoService{repo}
+func NewTodoService(repo port.TodoRepository, telemetry port.Telemetry) *TodoService {
+	return &TodoService{
+		repo:      repo,
+		telemetry: telemetry,
+	}
 }
 
 func (ts *TodoService) GetTodosWithPagination(ctx context.Context, userId int, limit int, cursor string) (*response.CursorResponse, error) {
+	// Record service operation start
+	start := time.Now()
+
 	rows, hasNext, err := ts.repo.GetAllWithCursor(ctx, userId, limit, cursor)
+
+	// Record service operation end
+	duration := time.Since(start)
+	ts.telemetry.RecordServiceOperation(ctx, "todo", "GetTodosWithPagination", userId, duration, err)
 
 	data := make([]response.TodoResponse, 0)
 

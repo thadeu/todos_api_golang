@@ -1,12 +1,15 @@
 package http
 
 import (
+	"log/slog"
+
 	database "todoapp/internal/adapter/database/sqlite"
 	repository "todoapp/internal/adapter/database/sqlite/repository"
 
 	"todoapp/internal/adapter/http/handler"
 	"todoapp/internal/core/port"
 	"todoapp/internal/core/service"
+	"todoapp/internal/core/telemetry"
 	"todoapp/pkg/config"
 )
 
@@ -24,12 +27,19 @@ type Container struct {
 }
 
 func NewContainer(db *database.DB, logger *config.LokiLogger) *Container {
-	userRepo := repository.NewUserRepository(db)
-	todoRepo := repository.NewTodoRepository(db)
+	// Create telemetry probe - centralized point for all telemetry
+	probe := telemetry.NewOTELProbe(slog.Default())
+	// For testing or when telemetry is disabled, use:
+	// probe := telemetry.NewNoOpProbe()
 
+	// Inject probe into repositories
+	userRepo := repository.NewUserRepository(db, probe)
+	todoRepo := repository.NewTodoRepository(db, probe)
+
+	// Services get probe for business-level telemetry
 	authSvc := service.NewAuthService(userRepo)
 	userSvc := service.NewUserService(userRepo)
-	todoSvc := service.NewTodoService(todoRepo)
+	todoSvc := service.NewTodoService(todoRepo, probe)
 
 	authHandler := handler.NewAuthHandler(authSvc)
 	userHandler := handler.NewUserHandler(userSvc)

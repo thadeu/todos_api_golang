@@ -15,6 +15,7 @@ import (
 	"todoapp/internal/core/model/request"
 	"todoapp/internal/core/port"
 	"todoapp/internal/core/service"
+	"todoapp/internal/core/telemetry"
 )
 
 type AuthUseCaseTestSuite struct {
@@ -25,8 +26,9 @@ type AuthUseCaseTestSuite struct {
 
 func (s *AuthUseCaseTestSuite) SetupTest() {
 	db := InitTestDB()
+	probe := telemetry.NewNoOpProbe() // Use NoOpProbe for tests
 
-	repo := repository.NewUserRepository(db)
+	repo := repository.NewUserRepository(db, probe)
 
 	s.UseCase = service.NewAuthService(repo)
 	s.repo = repo
